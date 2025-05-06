@@ -90,6 +90,7 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 		for i in range(len(cum)):
 			cum[i] += values[i]
 
+	ax.ticklabel_format(axis="y", useLocale=True)
 	ax.set_xlabel(xlabel)
 	ax.set_ylabel(ylabel)
 	ax.set_title(title)
@@ -313,7 +314,9 @@ def main():
 			("Type", "Count"),
 		)
 
-		print(f"\n##### {name}s compatible with recent Thunderbird versions\n")
+		print(
+			f"\n##### {name}s compatible with recent Thunderbird versions\n\n(Looking only at the Thunderbird releases compatible with the latest version of each {name}.)\n"
+		)
 
 		rows = []
 		for aversion, version, aname in aversions:

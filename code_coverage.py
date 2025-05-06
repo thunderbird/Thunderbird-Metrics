@@ -65,6 +65,7 @@ def output_line_graph(adir, labels, series, title, xlabel, ylabel, legend):
 		# for l, v in zip(labels, values):
 		# 	ax.annotate(v, (l, v))
 
+	ax.ticklabel_format(axis="y", useLocale=True)
 	ax.set_xlabel(xlabel)
 	ax.set_ylabel(ylabel)
 	ax.set_title(title)

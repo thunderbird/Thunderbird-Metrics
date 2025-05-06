@@ -82,6 +82,7 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 		for i in range(len(cum)):
 			cum[i] += values[i]
 
+	ax.ticklabel_format(axis="y", useLocale=True)
 	ax.set_xlabel(xlabel)
 	ax.set_ylabel(ylabel)
 	ax.set_title(title)
