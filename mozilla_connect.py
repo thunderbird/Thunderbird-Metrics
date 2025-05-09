@@ -13,6 +13,7 @@ import locale
 import os
 import platform
 import re
+import statistics
 import sys
 import time
 from collections import Counter
@@ -95,6 +96,25 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 	print(f"\n![{title}]({fig_to_data_uri(fig)})\n")
 
 
+def output_duration(delta):
+	m, s = divmod(delta.seconds, 60)
+	h, m = divmod(m, 60)
+	y, d = divmod(delta.days, 365)
+	text = []
+	if y:
+		text.append(f"{y:n} year{'s' if y != 1 else ''}")
+	if y or d:
+		text.append(f"{d:n} day{'s' if d != 1 else ''}")
+	if y or d or h:
+		text.append(f"{h:n} hour{'s' if h != 1 else ''}")
+	if y or d or h or m:
+		text.append(f"{m:n} minute{'s' if m != 1 else ''}")
+	if y or d or h or m or s:
+		text.append(f"{s:n} second{'s' if s != 1 else ''}")
+
+	return ", ".join(text)
+
+
 def get_all_ideas(label):
 	ideas = []
 	cursor = None
@@ -171,7 +191,7 @@ def main():
 			ideas[label] = data
 
 		endtime = time.perf_counter()
-		print(f"Downloaded ideas in {endtime - starttime:n} seconds.", file=sys.stderr)
+		print(f"Downloaded ideas in {output_duration(timedelta(seconds=endtime - starttime))}.", file=sys.stderr)
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(ideas, f, ensure_ascii=False, indent="\t")
@@ -192,11 +212,15 @@ def main():
 		for idea in ideas[label]:
 			labels.setdefault(idea["id"], []).append(label)
 
-	created = {(date.year, date.month): [] for date in dates}
+	created = {(adate.year, adate.month): [] for adate in dates}
+	deltas = []
 
 	for item in items.values():
-		date = datetime.fromisoformat(item["post_time"]).astimezone(timezone.utc)
-		created.setdefault((date.year, date.month), []).append(item)
+		adate = datetime.fromisoformat(item["post_time"]).astimezone(timezone.utc)
+		created.setdefault((adate.year, adate.month), []).append(item)
+
+		if "status" in item and not item["status"]["completed"]:
+			deltas.append(date - adate)
 
 	items_count = len(items)
 
@@ -220,6 +244,16 @@ def main():
 			for (key, name), count in status_counts.most_common()
 		],
 		("Idea Status", "Count"),
+	)
+
+	completed_count = sum(1 for item in items.values() if "status" in item and item["status"]["completed"])
+
+	print(f"\nIdeas completed: {completed_count:n} / {idea_count:n} ({completed_count / idea_count:.4%})")
+
+	mean = sum(deltas, timedelta()) / len(deltas)
+
+	print(
+		f"\n**Open Ideas Duration**\n* Average/Mean: {output_duration(mean)}\n* Median: {output_duration(statistics.median(deltas))}"
 	)
 
 	discussion_count = board_counts["discussions"]
@@ -265,7 +299,7 @@ def main():
 			for key in STATUSES:
 				created_status[key].append(astatus_counts.get(key, 0))
 			for key in LABELS:
-				created_label[key].append(label_counts.get(key, 0))
+				created_label[key].append(label_counts[key])
 
 	print("\n### Total Ideas/Discussions Created by Month\n")
 	output_stacked_bar_graph(

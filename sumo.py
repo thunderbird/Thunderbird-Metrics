@@ -259,7 +259,7 @@ def main():
 			created_status["Question"].append(questions_count - answered_count)
 
 			for key in PRODUCTS:
-				created_product[key].append(product_counts.get(key, 0))
+				created_product[key].append(product_counts[key])
 
 	print('### Total Questions Created by Month\n\n(The lifecycle goes "Question" ⟶ "Answered" ⟶ "Solved".)\n')
 	output_stacked_bar_graph(

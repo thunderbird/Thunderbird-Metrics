@@ -249,7 +249,7 @@ def main():
 			)
 			if versions[key]
 		]
-		+ [("115.18.0", "115 ESR")]
+		+ [("115.18.0", "Old ESR")]
 	]
 
 	file = os.path.join(f"{end_date:%Y-%m}", "languages.json")
@@ -395,7 +395,7 @@ def main():
 				created_status["Created"].append(created_count)
 
 				# for key in category_counts:
-				# 	created_category[key].append(acategory_counts.get(key, 0))
+				# 	created_category[key].append(acategory_counts[key])
 
 		print(f"\n#### Total {name}s Created by Month\n")
 		output_stacked_bar_graph(adir, labels, created_status, f"ATN {name}s Created by Month", "Date", "Total Created", None)

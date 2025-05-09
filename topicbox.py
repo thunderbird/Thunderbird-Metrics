@@ -216,7 +216,7 @@ def main():
 			))
 
 			for g in mailboxs.values():
-				created_mailbox[g["name"]].append(thread_counts.get(g["archiveMailboxId"], 0))
+				created_mailbox[g["name"]].append(thread_counts[g["archiveMailboxId"]])
 
 	print("\n### Total Email Threads by Month\n")
 	output_stacked_bar_graph(

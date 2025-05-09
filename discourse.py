@@ -292,7 +292,7 @@ def main():
 			created_status["Topic"].append(topics_count - answered_count)
 
 			for category in categories.values():
-				created_category[category["name"]].append(category_counts.get(category["id"], 0))
+				created_category[category["name"]].append(category_counts[category["id"]])
 
 	print('\n### Total Topics Created by Month\n\n(The lifecycle goes "Topic" ⟶ "Answered" ⟶ "Solved".)\n')
 	output_stacked_bar_graph(
