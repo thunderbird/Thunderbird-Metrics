@@ -118,11 +118,17 @@ def jmap(method_calls):
 
 
 def main():
-	start_date = datetime(2018, 8, 1, tzinfo=timezone.utc)
-	end_date = datetime.now(timezone.utc)
+	date = datetime.now(timezone.utc)
+	year = date.year
+	month = date.month - 1
+	if month < 1:
+		year -= 1
+		month += 12
+	start_date = max(datetime(year - 10, 1, 1, tzinfo=timezone.utc), datetime(2018, 8, 1, tzinfo=timezone.utc))
+
 	dates = []
 	current_start = start_date
-	while current_start < end_date:
+	while current_start < date:
 		year = current_start.year
 		month = current_start.month + 1
 		if month > 12:
@@ -142,7 +148,7 @@ def main():
 
 	print("## 📧 Topicbox Mailing Lists (thunderbird.topicbox.com)\n")
 
-	print(f"Data as of: {end_date:%Y-%m-%d %H:%M:%S%z}\n")
+	print(f"Data as of: {date:%Y-%m-%d %H:%M:%S%z}\n")
 
 	data = jmap([["Group/get", {"accountId": ACCOUNT_ID, "ids": None}, "grp"]])
 

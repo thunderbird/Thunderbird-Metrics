@@ -116,20 +116,20 @@ def main():
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
 
-	# start_date = datetime(2020, 1, 1, tzinfo=timezone.utc)
-	end_date = datetime.now(timezone.utc)
-	start_date = datetime(end_date.year - 1, end_date.month, 1, tzinfo=timezone.utc)
+	date = datetime.now(timezone.utc)
+	# start_date = datetime(date.year - 5, 1, 1, tzinfo=timezone.utc)
+	start_date = datetime(date.year - 1, date.month, 1, tzinfo=timezone.utc)
 	dates = []
-	date = start_date
-	while date < end_date:
-		dates.append(date)
+	current_start = start_date
+	while current_start < date:
+		dates.append(current_start)
 
-		year = date.year
-		month = date.month + 1
+		year = current_start.year
+		month = current_start.month + 1
 		if month > 12:
 			year += 1
 			month -= 12
-		date = date.replace(year=year, month=month)
+		current_start = current_start.replace(year=year, month=month)
 
 	# dates.pop()
 	end_date = dates[-2]
@@ -151,14 +151,14 @@ def main():
 		history = get_history(start_date, path)
 		for item in history:
 			if item["coverage"]:
-				date = datetime.fromtimestamp(item["date"])
-				counts.setdefault((date.year, date.month), []).append(item["coverage"])
+				adate = datetime.fromtimestamp(item["date"])
+				counts.setdefault((adate.year, adate.month), []).append(item["coverage"])
 
 		print(f"\tGot {sum(map(len, counts.values())):n} data points\n", file=sys.stderr)
 
 	print("## 📈 Thunderbird Code Coverage (coverage.thunderbird.net)\n")
 
-	print(f"Data as of: {end_date:%Y-%m-%d %H:%M:%S%z}\n")
+	print(f"Data as of: {date:%Y-%m-%d %H:%M:%S%z}\n")
 
 	labels = list(reversed(dates))
 	coverages = {path or "Root": [] for path in paths}
