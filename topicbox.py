@@ -118,6 +118,10 @@ def jmap(method_calls):
 
 
 def main():
+	if len(sys.argv) != 1:
+		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
+		sys.exit(1)
+
 	date = datetime.now(timezone.utc)
 	year = date.year
 	month = date.month - 1

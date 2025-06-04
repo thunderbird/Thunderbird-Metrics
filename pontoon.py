@@ -162,14 +162,18 @@ def main():
 
 	print(f"### Total languages / locales: {len(languages):n} / {len(locales):n}\n")
 
-	ff_locales = set()
+	ff_projects = {}
+	ff_project_locales = {}
 
 	for slug in FF_PROJECTS:
 		data = get_ff_project(slug)
 
 		print(f"* {data['name']} localizations: {len(data['localizations']):n}")
 
-		ff_locales.update(alocale["locale"]["code"] for alocale in data["localizations"])
+		ff_projects[slug] = data
+		ff_project_locales[slug] = {alocale["locale"]["code"] for alocale in data["localizations"]}
+
+	ff_locales = {alocale["locale"]["code"] for data in ff_projects.values() for alocale in data["localizations"]}
 
 	print(f"\n**Total Firefox localizations**: {len(ff_locales):n}\n")
 
@@ -261,26 +265,36 @@ def main():
 			f"\n**Total Unreviewed Strings**: {data['unreviewedStrings']:n} / {data['totalStrings']:n} ({data['unreviewedStrings'] / data['totalStrings']:.4%})\n"
 		)
 
-		print("#### Top Missing Firefox Locales by Population (number of native speakers)\n")
+		print("#### Top Missing Locales by Population (number of native speakers)\n")
 
 		rows = []
 		for i, item in enumerate(
 			sorted(
-				(alocale for alocale in locales if alocale["code"] in ff_locales if alocale["code"] not in alocales),
+				(
+					alocale
+					for alocale in locales
+					# Japanese (ja) is supported, but does not use Pontoon
+					if alocale["code"] in ff_locales and alocale["code"] not in alocales and alocale["code"] != "ja"
+				),
 				key=operator.itemgetter("population"),
 				reverse=True,
 			),
 			1,
 		):
-			rows.append((f"{i:n}", f"{item['population']:n}", f"{item['name']!r} ({item['code']})"))
+			rows.append(
+				[f"{i:n}", f"{item['population']:n}", f"{item['name']!r} ({item['code']})"]
+				+ ["✔️" if item["code"] in ff_project_locales[slug] else "" for slug in FF_PROJECTS]
+			)
 			if i >= 10:
 				break
 
-		output_markdown_table(rows, ("#", "Population", "Locale"))
+		output_markdown_table(rows, ["#", "Population", "Locale"] + [ff_projects[slug]["name"] for slug in FF_PROJECTS])
 
 		diff = ff_locales - alocales
 
-		print(f"\n**Total Missing Firefox localizations**: {len(diff):n}\n")
+		print(
+			f"\n**Total Missing localizations**: {len(diff):n}\n\nMissing meaning it is supported by Firefox (see top of section above), but not yet by Thunderbird.\n"
+		)
 
 
 if __name__ == "__main__":
