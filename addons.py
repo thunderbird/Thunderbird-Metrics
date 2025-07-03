@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import locale
+import logging
 import operator
 import os
 import platform
@@ -34,7 +35,7 @@ session.headers["User-Agent"] = (
 	f"Thunderbird Metrics ({session.headers['User-Agent']} {platform.python_implementation()}/{platform.python_version()})"
 )
 session.mount(
-	"https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, status_forcelist=(502,), backoff_factor=1))
+	"https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(5, status_forcelist=(502,), backoff_factor=1))
 )
 atexit.register(session.close)
 
@@ -124,8 +125,8 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 	print(f"\n![{title}]({fig_to_data_uri(fig)})\n")
 
 
-def parse_isoformat(date):
-	return datetime.fromisoformat(date[:-1] + "+00:00" if date.endswith("Z") else date)
+def fromisoformat(date_string):
+	return datetime.fromisoformat(date_string[:-1] + "+00:00" if date_string.endswith("Z") else date_string)
 
 
 def remove_locale_url(astr):
@@ -267,6 +268,8 @@ def main():
 	if len(sys.argv) != 1:
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
+
+	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
 	end_date = datetime.now(timezone.utc)
 	year = end_date.year
@@ -458,14 +461,14 @@ def main():
 		updates = {}
 
 		for addon in addons:
-			date = parse_isoformat(addon["created"])
+			date = fromisoformat(addon["created"])
 			created.setdefault((date.year, date.month), []).append(addon)
 
-			date = parse_isoformat(addon["last_updated"])
+			date = fromisoformat(addon["last_updated"])
 			updated.setdefault((date.year, date.month), []).append(addon)
 
 			for version in addon_versions[f"{addon['id']}-{addon['slug']}"] or (addon["current_version"],):
-				date = parse_isoformat(max(file["created"] for file in version["files"]))
+				date = fromisoformat(max(file["created"] for file in version["files"]))
 				updates.setdefault((date.year, date.month), []).append(addon)
 
 		labels = list(reversed(dates))
@@ -523,7 +526,7 @@ def main():
 		for i, item in enumerate(created.get((end_date.year, end_date.month), []), 1):
 			rows.append((
 				f"{i:n}",
-				f"{parse_isoformat(item['created']):%Y-%m-%d}",
+				f"{fromisoformat(item['created']):%Y-%m-%d}",
 				output_emojis(item),
 				item["name"],
 				textwrap.shorten(item["summary"], 50, placeholder="…") if item["summary"] else "-",
@@ -548,7 +551,7 @@ def main():
 		):
 			rows.append((
 				f"{i:n}",
-				f"{parse_isoformat(item['last_updated']):%Y-%m-%d}",
+				f"{fromisoformat(item['last_updated']):%Y-%m-%d}",
 				output_emojis(item),
 				item["name"],
 				textwrap.shorten(item["summary"], 50, placeholder="…") if item["summary"] else "-",

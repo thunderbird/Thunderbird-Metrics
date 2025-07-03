@@ -9,6 +9,7 @@ import base64
 import csv
 import io
 import locale
+import logging
 import operator
 import os
 import platform
@@ -140,6 +141,8 @@ def main():
 	if len(sys.argv) != 1:
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
+
+	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
 	date = datetime.now(timezone.utc)
 	year = date.year

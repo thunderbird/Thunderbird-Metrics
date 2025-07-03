@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import locale
+import logging
 import os
 import platform
 import re
@@ -155,6 +156,8 @@ def main():
 	if len(sys.argv) != 1:
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
+
+	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
 	end_date = datetime.now(timezone.utc)
 	year = end_date.year

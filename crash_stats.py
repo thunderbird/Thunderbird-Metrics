@@ -9,6 +9,7 @@ import base64
 import csv
 import io
 import locale
+import logging
 import os
 import platform
 import re
@@ -90,8 +91,8 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 	print(f"\n![{title}]({fig_to_data_uri(fig)})\n")
 
 
-def parse_isoformat(date):
-	return datetime.fromisoformat(date[:-1] + "+00:00" if date.endswith("Z") else date)
+def fromisoformat(date_string):
+	return datetime.fromisoformat(date_string[:-1] + "+00:00" if date_string.endswith("Z") else date_string)
 
 
 VERSION_PATTERN = re.compile(r"^([0-9]+)(?:\.([0-9]+)(?:\.([0-9]+)(?:\.([0-9]+))?)?)?(?:([ab])([0-9]+)?)?(?:(pre)([0-9])?)?")
@@ -189,6 +190,8 @@ def main():
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
 
+	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
+
 	date = datetime.now(timezone.utc)
 	year = date.year
 	month = date.month - 6
@@ -224,7 +227,7 @@ def main():
 
 		rows = []
 		for item in reversed(data):
-			adate = parse_isoformat(item["term"])
+			adate = fromisoformat(item["term"])
 			astats = {product["term"]: product for product in item["facets"]["product"]}
 
 			writer.writerow({"Date": f"{adate:%Y-%m-%d}", **{product: astats[product]["count"] for product in PRODUCTS}})

@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import locale
+import logging
 import operator
 import os
 import platform
@@ -95,8 +96,8 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 	print(f"\n![{title}]({fig_to_data_uri(fig)})\n")
 
 
-def parse_isoformat(date):
-	return datetime.fromisoformat(date[:-1] + "+00:00" if date.endswith("Z") else date)
+def fromisoformat(date_string):
+	return datetime.fromisoformat(date_string[:-1] + "+00:00" if date_string.endswith("Z") else date_string)
 
 
 def get_languages():
@@ -152,6 +153,8 @@ def main():
 	if len(sys.argv) != 1:
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
+
+	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
 	end_date = datetime.now(timezone.utc)
 	year = end_date.year
@@ -226,7 +229,7 @@ def main():
 	LOS_ANGELES = ZoneInfo("America/Los_Angeles")
 
 	for question in questions:
-		date = parse_isoformat(question["created"]).replace(tzinfo=LOS_ANGELES).astimezone(timezone.utc)
+		date = fromisoformat(question["created"]).replace(tzinfo=LOS_ANGELES).astimezone(timezone.utc)
 		created.setdefault((date.year, date.month), []).append(question)
 
 	labels = list(reversed(dates))

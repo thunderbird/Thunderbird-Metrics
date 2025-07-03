@@ -77,3 +77,6 @@ quote-style = "double"
 indent-style = "tab"
 
 skip-magic-trailing-comma = true
+
+[tool.ruff.per-file-target-version]
+"sumo.py" = "py39"

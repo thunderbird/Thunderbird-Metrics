@@ -18,7 +18,7 @@ The e-mails are sent to the [Thunderbird Planning](https://thunderbird.topicbox.
 
 ## Usage
 
-Requires Python 3.6 or greater, as well as the [Requests library](https://pypi.org/project/requests/) and the [Matplotlib library](https://pypi.org/project/matplotlib/), which users can install with:
+Requires Python 3.7 or greater, as well as the [Requests library](https://pypi.org/project/requests/) and the [Matplotlib library](https://pypi.org/project/matplotlib/), which users can install with:
 ```bash
 pip3 install requests matplotlib
 # or

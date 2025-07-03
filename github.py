@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import locale
+import logging
 import operator
 import os
 import platform
@@ -180,8 +181,8 @@ def output_unit(number, scale=False):
 	return strm
 
 
-def parse_isoformat(date):
-	return datetime.fromisoformat(date[:-1] + "+00:00" if date.endswith("Z") else date)
+def fromisoformat(date_string):
+	return datetime.fromisoformat(date_string[:-1] + "+00:00" if date_string.endswith("Z") else date_string)
 
 
 def github_api(url, params=None):
@@ -286,39 +287,50 @@ def get_all_discussions(org, repo, start_date=None):
 
 LANGUAGE_EMOJI = {
 	"AIDL": "🤖",
+	"Batchfile": "📄",
 	"BitBake": "🍞",
 	"C": "🌊",
+	"C#": "🎼",
 	"C++": "➕",
+	"CMake": "🧱",
 	"CSS": "🎨",
-	"DIGITAL Command Language": "🖥️",
+	"DIGITAL Command Language": "💾",
 	"Dockerfile": "🐳",
 	"Fluent": "🔤",
-	"HCL": "⚙️",
+	"HCL": "🏗️",
 	"HTML": "🌐",
 	"IDL": "💬",
 	"Java": "☕",
 	"JavaScript": "📜",
-	"Jinja": "🧞",
+	"Jinja": "🏮",
+	"Jupyter Notebook": "📓",
 	"Kotlin": "🔷",
 	"Less": "➖",
+	"Linker Script": "⛓️",
+	"Lua": "🌙",
+	"M4": "🧩",
+	"MDX": "📝",
 	"Makefile": "🛠️",
 	"Mako": "🦈",
 	"NSIS": "📦",
 	"Objective-C++": "🎯",
 	"PHP": "🐘",
+	"PLpgSQL": "🔵",
 	"Pawn": "♟️",
 	"Python": "🐍",
 	"R": "📊",
 	"RenderScript": "🎞️",
-	"Roff": "📄",
+	"Roff": "📰",
 	"Ruby": "💎",
 	"Rust": "🦀",
 	"SCSS": "💅",
 	"Shell": "🐚",
-	"Smarty": "🤓",
+	"Smarty": "🧠",
 	"Swift": "🐦",
+	"Tcl": "💬",
 	"TypeScript": "🟦",
 	"Vue": "🖼️",
+	"Yacc": "⚖️",
 }
 
 
@@ -326,6 +338,8 @@ def main():
 	if len(sys.argv) != 1:
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
+
+	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
 	end_date = datetime.now(timezone.utc)
 	year = end_date.year
@@ -459,14 +473,14 @@ def main():
 	apr_closed = []
 
 	for issue in issues:
-		created_date = parse_isoformat(issue["created_at"])
+		created_date = fromisoformat(issue["created_at"])
 		if "pull_request" in issue:
 			pr_created.setdefault((created_date.year, created_date.month), []).append(issue)
 		else:
 			issues_created.setdefault((created_date.year, created_date.month), []).append(issue)
 
 		if issue["closed_at"]:
-			closed_date = parse_isoformat(issue["closed_at"])
+			closed_date = fromisoformat(issue["closed_at"])
 			if "pull_request" in issue:
 				pr_closed.setdefault((closed_date.year, closed_date.month), []).append(issue)
 				# pr_closed_deltas.setdefault((closed_date.year, closed_date.month), []).append(closed_date - created_date)
@@ -738,6 +752,31 @@ def main():
 	output_markdown_table(rows, ("PRs", "", "User", "Name", "Company", "Bio", "URL"))
 	print("\n🌟 = First time contributor, 🙋 = Available for hire")
 
+	issue_user_counts = Counter(
+		(item["user"]["id"], item["user"]["login"], item["user"]["html_url"])
+		for item in issues_created[end_date.year, end_date.month]
+		if item["user"]["type"] != "Bot"
+	)
+	print(f"\n### Top Users by Created Issues, excluding Bots ({end_date:%B %Y})\n")
+
+	rows = []
+	for (_id, user, url), count in issue_user_counts.most_common(20):
+		if user not in users:
+			users[user] = get_user(user)
+			changed = True
+
+		auser = users[user]
+		rows.append((
+			f"{count:n}",
+			user,
+			auser["name"] or "-",
+			auser["company"] or "-",
+			textwrap.shorten(auser["bio"] or "", 60, placeholder="…"),
+			url,
+		))
+
+	output_markdown_table(rows, ("Issues", "User", "Name", "Company", "Bio", "URL"))
+
 	if changed:
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(users, f, ensure_ascii=False, indent="\t")
@@ -749,7 +788,7 @@ def main():
 		rows.append((
 			f"{i:n}",
 			f"{item['stargazers_count']:n}",
-			f"{parse_isoformat(item['created_at']):%Y-%m-%d}",
+			f"{fromisoformat(item['created_at']):%Y-%m-%d}",
 			item["full_name"],
 			textwrap.shorten(item["description"], 80, placeholder="…"),
 			item["html_url"],

@@ -9,6 +9,7 @@ import base64
 import csv
 import io
 import locale
+import logging
 import os
 import platform
 import re
@@ -89,8 +90,8 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 	print(f"\n![{title}]({fig_to_data_uri(fig)})\n")
 
 
-def parse_isoformat(date):
-	return datetime.fromisoformat(date[:-1] + "+00:00" if date.endswith("Z") else date)
+def fromisoformat(date_string):
+	return datetime.fromisoformat(date_string[:-1] + "+00:00" if date_string.endswith("Z") else date_string)
 
 
 def output_isoformat(date):
@@ -121,6 +122,8 @@ def main():
 	if len(sys.argv) != 1:
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
+
+	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
 	date = datetime.now(timezone.utc)
 	year = date.year
@@ -164,7 +167,7 @@ def main():
 	output_markdown_table(
 		[
 			(
-				f"{parse_isoformat(g['created']):%Y-%m-%d}",
+				f"{fromisoformat(g['created']):%Y-%m-%d}",
 				g["name"],
 				textwrap.shorten(g["description"], 80, placeholder="…"),
 				f"{TOPICBOX_BASE_URL}groups/{g['identifier']}",
@@ -176,7 +179,7 @@ def main():
 
 	method_calls = []
 	for i, mb_id in enumerate(mailbox_ids):
-		date = parse_isoformat(mailboxs[mb_id]["created"])
+		date = fromisoformat(mailboxs[mb_id]["created"])
 		for j, (start, end) in enumerate(dates):
 			if end > date:
 				method_calls.append([

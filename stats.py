@@ -9,6 +9,7 @@ import base64
 import io
 import json
 import locale
+import logging
 import operator
 import os
 import platform
@@ -176,6 +177,8 @@ def main():
 	if len(sys.argv) != 1:
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
+
+	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
 	date = datetime.now(timezone.utc)
 	year = date.year
@@ -365,14 +368,14 @@ def main():
 
 	# https://whattrainisitnow.com/api/firefox/chemspills/
 	# https://www.mozilla.org/security/known-vulnerabilities/thunderbird/
-	adate = datetime(2025, 5, 20, tzinfo=timezone.utc)
+	# adate = datetime(2025, 5, 20, tzinfo=timezone.utc)
 
-	print(f"""
-### ☢️ Last Chemspill (critical 0-day security vulnerability)
+	# print(f"""
+	# ### ☢️ Last Chemspill (critical 0-day security vulnerability)
 
-{adate:%Y-%m-%d} ({(date - adate).days:n} days ago): Thunderbird 138.0.2 and 128.10.2.
+	# {adate:%Y-%m-%d} ({(date - adate).days:n} days ago): Thunderbird 138.0.2 and 128.10.2.
 
-Also see: https://wiki.mozilla.org/Release_Management/Chemspill""")
+	# Also see: https://wiki.mozilla.org/Release_Management/Chemspill""")
 
 	print("""
 ### ❓ Thunderbird related Areweyet pages

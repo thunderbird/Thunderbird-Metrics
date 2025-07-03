@@ -10,6 +10,7 @@ import csv
 import io
 import json
 import locale
+import logging
 import operator
 import os
 import platform
@@ -158,8 +159,8 @@ def output_duration(delta):
 	return ", ".join(text)
 
 
-def parse_isoformat(date):
-	return datetime.fromisoformat(date[:-1] + "+00:00" if date.endswith("Z") else date)
+def fromisoformat(date_string):
+	return datetime.fromisoformat(date_string[:-1] + "+00:00" if date_string.endswith("Z") else date_string)
 
 
 def get_all_bugs(product, component, start_date=None):
@@ -178,7 +179,7 @@ def get_all_bugs(product, component, start_date=None):
 					"product": product,
 					"component": component,
 					# attachments.creation_time,attachments.last_change_time,attachments.id,attachments.file_name,attachments.content_type,attachments.is_obsolete,attachments.is_patch,attachments.creator
-					"include_fields": "assigned_to,blocks,cc,cf_last_resolved,comment_count,component,creation_time,depends_on,duplicates,id,is_confirmed,is_open,keywords,priority,product,resolution,see_also,severity,status,summary,type,votes,whiteboard,comments.id,comments.text,comments.creator,comments.creation_time,comments.reactions",
+					"include_fields": "assigned_to,blocks,cc,cf_last_resolved,comment_count,component,creation_time,creator,depends_on,duplicates,id,is_confirmed,is_open,keywords,priority,product,resolution,see_also,severity,status,summary,type,votes,whiteboard,comments.id,comments.text,comments.creator,comments.creation_time,comments.reactions",
 					# "last_change_time": f"{start_date:%Y-%m-%d}" if start_date is not None else start_date,
 					"limit": LIMIT,
 					"offset": offset,
@@ -322,6 +323,8 @@ def main():
 		print("Error: Phabricator API token required", file=sys.stderr)
 		sys.exit(1)
 
+	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
+
 	end_date = datetime.now(timezone.utc)
 	year = end_date.year
 	month = end_date.month - 1
@@ -375,8 +378,16 @@ def main():
 
 	items = {bug["id"]: bug for bug in bugs}
 
-	# bmo_users = {user["name"]: user for bug in items.values() for user in bug["cc_detail"] + [bug["assigned_to_detail"]]}
-	bmo_user_ids = {f"{user['id']}": user for bug in items.values() for user in bug["cc_detail"] + [bug["assigned_to_detail"]]}
+	bmo_users = {
+		user["name"]: user
+		for bug in items.values()
+		for user in (*bug["cc_detail"], bug["creator_detail"], bug["assigned_to_detail"])
+	}
+	bmo_user_ids = {
+		f"{user['id']}": user
+		for bug in items.values()
+		for user in (*bug["cc_detail"], bug["creator_detail"], bug["assigned_to_detail"])
+	}
 
 	file = os.path.join(f"{end_date:%Y-%m}", f"Phabricator_revisions_{REPOSITORY}.json")
 
@@ -474,7 +485,7 @@ def main():
 	aclosed = []
 
 	for bug in items.values():
-		created_date = parse_isoformat(bug["creation_time"])
+		created_date = fromisoformat(bug["creation_time"])
 		created.setdefault((created_date.year, created_date.month), []).append(bug)
 
 		if bug["is_open"]:
@@ -483,7 +494,7 @@ def main():
 		else:
 			aclosed.append(bug)
 			if bug["cf_last_resolved"]:
-				closed_date = parse_isoformat(bug["cf_last_resolved"])
+				closed_date = fromisoformat(bug["cf_last_resolved"])
 				closed.setdefault((closed_date.year, closed_date.month), []).append(bug)
 				closed_deltas.setdefault((closed_date.year, closed_date.month), []).append(closed_date - created_date)
 
@@ -733,6 +744,16 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 	if changed:
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(phab_users, f, ensure_ascii=False, indent="\t")
+
+	bug_user_counts = Counter(bug["creator"] for bug in created[end_date.year, end_date.month])
+	print(f"\n### Top Users by Created Bugs ({end_date:%B %Y})\n")
+
+	rows = []
+	for user, count in bug_user_counts.most_common(20):
+		bmo_user = bmo_users[user]
+		rows.append((f"{count:n}", bmo_user["nick"], bmo_user["real_name"]))
+
+	output_markdown_table(rows, ("Bugs", "BMO User", "Name"))
 
 	print("\n### Top Open Bugs by Total Reactions\n")
 
