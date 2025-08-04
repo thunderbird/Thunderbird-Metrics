@@ -106,10 +106,10 @@ def get_languages():
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.error("%s\n%r", e, r.text)
 		return {}
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.error("%s", e)
 		return {}
 
 	return data
@@ -120,7 +120,7 @@ def get_questions(product, start_date):
 	page = 1
 
 	while True:
-		print(f"\tPage {page} ({len(questions):n})", file=sys.stderr)
+		logging.info("\tPage %s (%s)", page, len(questions))
 
 		try:
 			r = session.get(
@@ -131,10 +131,10 @@ def get_questions(product, start_date):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			print(e, r.text, file=sys.stderr)
+			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
 		except RequestException as e:
-			print(e, file=sys.stderr)
+			logging.critical("%s", e)
 			sys.exit(1)
 
 		questions.extend(data["results"])
@@ -199,16 +199,16 @@ def main():
 	if not os.path.exists(file):
 		questions = []
 
-		starttime = time.perf_counter()
+		start = time.perf_counter()
 
 		for product in PRODUCTS:
-			print(f"Processing product: {product}\n", file=sys.stderr)
+			logging.info("Processing product: %s", product)
 
 			data = get_questions(product, start_date)
 			questions.extend(data)
 
-		endtime = time.perf_counter()
-		print(f"Downloaded questions in {endtime - starttime:n} seconds.", file=sys.stderr)
+		end = time.perf_counter()
+		logging.info("Downloaded questions in %s seconds.", end - start)
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(questions, f, ensure_ascii=False, indent="\t")

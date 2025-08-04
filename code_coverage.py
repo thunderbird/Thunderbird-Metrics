@@ -83,10 +83,10 @@ def get_path(path=None):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return data
@@ -103,10 +103,10 @@ def get_history(start, path=None):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return data
@@ -149,7 +149,7 @@ def main():
 	histories = {path: {} for path in paths}
 
 	for path, counts in histories.items():
-		print(f"Processing path: {paths[path]} ({path!r})\n", file=sys.stderr)
+		logging.info("Processing path: %s (%r)", paths[path], path)
 
 		history = get_history(start_date, path)
 		for item in history:
@@ -157,7 +157,7 @@ def main():
 				adate = datetime.fromtimestamp(item["date"])
 				counts.setdefault((adate.year, adate.month), []).append(item["coverage"])
 
-		print(f"\tGot {sum(map(len, counts.values())):n} data points\n", file=sys.stderr)
+		logging.info("\tGot %s data points", sum(map(len, counts.values())))
 
 	print("## 📈 Thunderbird Code Coverage (coverage.thunderbird.net)\n")
 

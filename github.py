@@ -191,15 +191,15 @@ def github_api(url, params=None):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	if not int(r.headers["x-ratelimit-remaining"]):
 		sec = int(r.headers["x-ratelimit-reset"]) - time.time()
-		print(f"Sleeping for {sec} seconds", file=sys.stderr)
+		logging.info("Sleeping for %s seconds", sec)
 		time.sleep(max(sec + 10, 60))
 
 	return r, data
@@ -210,7 +210,7 @@ def get_repositories(org):
 	page = 1
 
 	while True:
-		print(f"\tPage {page} ({len(repos):n})", file=sys.stderr)
+		logging.info("\tPage %s (%s)", page, len(repos))
 
 		r, data = github_api(f"{GITHUB_API_URL}orgs/{org}/repos", {"per_page": LIMIT, "page": page})
 
@@ -244,7 +244,7 @@ def get_all_issues(org, repo, start_date=None):
 	page = 1
 
 	while True:
-		print(f"\tPage {page} ({len(issues):n})", file=sys.stderr)
+		logging.info("\tPage %s (%s)", page, len(issues))
 
 		r, data = github_api(
 			f"{GITHUB_API_URL}repos/{org}/{repo}/issues",
@@ -271,7 +271,7 @@ def get_all_discussions(org, repo, start_date=None):
 	page = 1
 
 	while True:
-		print(f"\tPage {page} ({len(discussions):n})", file=sys.stderr)
+		logging.info("\tPage %s (%s)", page, len(discussions))
 
 		r, data = github_api(f"{GITHUB_API_URL}repos/{org}/{repo}/discussions", {"per_page": LIMIT, "page": page})
 
@@ -373,7 +373,7 @@ def main():
 	if not os.path.exists(file):
 		repos = []
 
-		print("Getting Repositories", file=sys.stderr)
+		logging.info("Getting Repositories")
 
 		for org in ORGANIZATIONS:
 			data = get_repositories(org)
@@ -383,7 +383,7 @@ def main():
 			data = get_repository(org, repo)
 			repos.append(data)
 
-		print("Repositories:", [repo["full_name"] for repo in repos], file=sys.stderr)
+		logging.info("Repositories: %s", [repo["full_name"] for repo in repos])
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(repos, f, ensure_ascii=False, indent="\t")
@@ -397,11 +397,11 @@ def main():
 		issues = []
 		# discussions = []
 
-		print("Getting Issues", file=sys.stderr)
-		starttime = time.perf_counter()
+		logging.info("Getting Issues")
+		start = time.perf_counter()
 
 		for repo in repos:
-			print(f"\nRepository: {repo['full_name']!r}", file=sys.stderr)
+			logging.info("Repository: %r", repo["full_name"])
 
 			data = get_all_issues(repo["owner"]["login"], repo["name"], start_date)
 			issues.extend(data)
@@ -409,8 +409,8 @@ def main():
 			# data = get_all_discussions(repo["owner"]["login"], repo["name"], start_date)
 			# discussions.extend(data)
 
-		endtime = time.perf_counter()
-		print(f"Downloaded issues in {output_duration(timedelta(seconds=endtime - starttime))}.", file=sys.stderr)
+		end = time.perf_counter()
+		logging.info("Downloaded issues in %s.", output_duration(timedelta(seconds=end - start)))
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(issues, f, ensure_ascii=False, indent="\t")
@@ -425,16 +425,16 @@ def main():
 	if not os.path.exists(file):
 		languages = {}
 
-		print("Getting Languages", file=sys.stderr)
-		starttime = time.perf_counter()
+		logging.info("Getting Languages")
+		start = time.perf_counter()
 
 		for repo in repos:
-			print(f"\nRepository: {repo['full_name']!r}", file=sys.stderr)
+			logging.info("Repository: %r", repo["full_name"])
 
 			languages[repo["full_name"]] = get_languages(repo["owner"]["login"], repo["name"])
 
-		endtime = time.perf_counter()
-		print(f"Downloaded languages in {output_duration(timedelta(seconds=endtime - starttime))}.", file=sys.stderr)
+		end = time.perf_counter()
+		logging.info("Downloaded languages in %s.", output_duration(timedelta(seconds=end - start)))
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(languages, f, ensure_ascii=False, indent="\t")

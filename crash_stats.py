@@ -103,7 +103,7 @@ Version = namedtuple("Version", ("major", "minor", "micro", "patch", "alpha_beta
 def parse_version(version):
 	version_res = VERSION_PATTERN.match(version)
 	if not version_res:
-		print(f"Error parsing version {version!r}", file=sys.stderr)
+		logging.error("Error parsing version %r", version)
 		return None
 
 	major, minor, micro, patch, alpha_beta, alpha_beta_ver, pre, pre_ver = version_res.groups()
@@ -152,10 +152,10 @@ def get_histogram(start_date, end_date):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return data["facets"]["histogram_date"]
@@ -176,10 +176,10 @@ def get_aggregation(start_date, end_date):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return data["facets"]["signature"]

@@ -6,6 +6,8 @@
 
 set -e
 
+export LC_ALL=en_US.UTF-8
+
 if [[ $# -ne 0 ]]; then
 	echo "Usage: $0" >&2
 	exit 1
@@ -47,8 +49,6 @@ Welcome to the Thunderbird Community Metrics, which are designed to complement M
 
 This is e-mail 1 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
 
-🙋 We are looking for a volunteer Mozilla contributor to run these scripts and send the e-mails each month. If you might be interested, please send us a message.
-
 ---
 
 # 📊 Thunderbird Community Metrics $date2 ($date1)
@@ -77,8 +77,6 @@ Hello Thunderbird Community,
 
 This is e-mail 2 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
 
-🙋 We are looking for a volunteer Mozilla contributor to run these scripts and send the e-mails each month. If you might be interested, please send us a message.
-
 ---
 
 # 📊 Thunderbird Community Metrics $date2 ($date1)
@@ -100,8 +98,6 @@ Subject: Thunderbird Community Metrics $date2 ($date1): Stats and Mozilla Connec
 Hello Thunderbird Community,
 
 This is e-mail 3 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
-
-🙋 We are looking for a volunteer Mozilla contributor to run these scripts and send the e-mails each month. If you might be interested, please send us a message.
 
 ---
 
@@ -127,8 +123,6 @@ Hello Thunderbird Community,
 
 This is e-mail 4 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
 
-🙋 We are looking for a volunteer Mozilla contributor to run these scripts and send the e-mails each month. If you might be interested, please send us a message.
-
 ---
 
 # 📊 Thunderbird Community Metrics $date2 ($date1)
@@ -150,8 +144,6 @@ Subject: Thunderbird Community Metrics $date2 ($date1): Support (Mozilla Support
 Hello Thunderbird Community,
 
 This is e-mail 5 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
-
-🙋 We are looking for a volunteer Mozilla contributor to run these scripts and send the e-mails each month. If you might be interested, please send us a message.
 
 ---
 
@@ -180,8 +172,6 @@ Subject: Thunderbird Community Metrics $date2 ($date1): Localization (Pontoon an
 Hello Thunderbird Community,
 
 This is e-mail 6 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
-
-🙋 We are looking for a volunteer Mozilla contributor to run these scripts and send the e-mails each month. If you might be interested, please send us a message.
 
 ---
 

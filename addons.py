@@ -146,7 +146,7 @@ Version = namedtuple("Version", ("major", "minor", "micro", "patch", "alpha_beta
 def parse_version(version):
 	version_res = VERSION_PATTERN.match(version)
 	if not version_res:
-		print(f"Error parsing version {version!r}", file=sys.stderr)
+		logging.error("Error parsing version %r", version)
 		return None
 
 	major, minor, micro, patch, alpha_beta, alpha_beta_ver, pre, pre_ver = version_res.groups()
@@ -174,10 +174,10 @@ def get_tb_versions():
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return data
@@ -189,10 +189,10 @@ def get_languages():
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.error("%s\n%r", e, r.text)
 		return {}
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.error("%s", e)
 		return {}
 
 	return data
@@ -203,7 +203,7 @@ def get_addons(atype):
 	page = 1
 
 	while True:
-		print(f"\tPage {page} ({len(addons):n})", file=sys.stderr)
+		logging.info("\tPage %s (%s)", page, len(addons))
 
 		try:
 			r = session.get(
@@ -214,10 +214,10 @@ def get_addons(atype):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			print(e, r.text, file=sys.stderr)
+			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
 		except RequestException as e:
-			print(e, file=sys.stderr)
+			logging.critical("%s", e)
 			sys.exit(1)
 
 		addons.extend(data["results"])
@@ -235,7 +235,7 @@ def get_addon_versions(addon_id):
 	page = 1
 
 	while True:
-		print(f"\tPage {page} ({len(versions):n})", file=sys.stderr)
+		logging.info("\tPage %s (%s)", page, len(versions))
 
 		try:
 			r = session.get(
@@ -246,12 +246,12 @@ def get_addon_versions(addon_id):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			print(e, r.text, file=sys.stderr)
+			logging.error("%s\n%r", e, r.text)
 			if r.status_code in {401, 404}:
 				return versions
 			sys.exit(1)
 		except RequestException as e:
-			print(e, file=sys.stderr)
+			logging.critical("%s", e)
 			sys.exit(1)
 
 		versions.extend(data["results"])
@@ -335,12 +335,12 @@ def main():
 		file = os.path.join(f"{end_date:%Y-%m}", f"ATN_{atype}s.json")
 
 		if not os.path.exists(file):
-			starttime = time.perf_counter()
+			start = time.perf_counter()
 
 			addons = get_addons(atype)
 
-			endtime = time.perf_counter()
-			print(f"Downloaded add-ons in {endtime - starttime:n} seconds.", file=sys.stderr)
+			end = time.perf_counter()
+			logging.info("Downloaded add-ons in %s seconds.", end - start)
 
 			with open(file, "w", encoding="utf-8") as f:
 				json.dump(addons, f, ensure_ascii=False, indent="\t")
@@ -353,14 +353,14 @@ def main():
 		if not os.path.exists(file):
 			addon_versions = {}
 
-			starttime = time.perf_counter()
+			start = time.perf_counter()
 
 			for addon in addons:
-				print(f"\n{atype}: {addon['id']} {addon['slug']!r}", file=sys.stderr)
+				logging.info("%s: %s %r", atype, addon["id"], addon["slug"])
 				addon_versions[f"{addon['id']}-{addon['slug']}"] = get_addon_versions(addon["id"])
 
-			endtime = time.perf_counter()
-			print(f"Downloaded add-on versions in {endtime - starttime:n} seconds.", file=sys.stderr)
+			end = time.perf_counter()
+			logging.info("Downloaded add-on versions in %s seconds.", end - start)
 
 			with open(file, "w", encoding="utf-8") as f:
 				json.dump(addon_versions, f, ensure_ascii=False, indent="\t")

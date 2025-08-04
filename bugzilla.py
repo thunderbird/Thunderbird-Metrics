@@ -169,7 +169,7 @@ def get_all_bugs(product, component, start_date=None):
 	offset = 0
 
 	while True:
-		print(f"\tOffset {offset:n}", file=sys.stderr)
+		logging.info("\tOffset %s", offset)
 
 		try:
 			r = session.get(
@@ -189,15 +189,15 @@ def get_all_bugs(product, component, start_date=None):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			print(e, r.text, file=sys.stderr)
+			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
 		except RequestException as e:
-			print(e, file=sys.stderr)
+			logging.critical("%s", e)
 			sys.exit(1)
 
 		dupes = [bug["id"] for bug in data["bugs"] if bug["id"] in seen or seen.add(bug["id"])]
 		if dupes:
-			print(f"Warning: Duplicate Bug ids: {len(dupes):n} ({', '.join(map(str, sorted(dupes)))})", file=sys.stderr)
+			logging.warning("Duplicate Bug ids: %s (%s)", len(dupes), ", ".join(map(str, sorted(dupes))))
 
 		bugs.extend(data["bugs"])
 
@@ -215,10 +215,10 @@ def phabricator_api_bmo(method, data):
 		r.raise_for_status()
 		result = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return result["result"]
@@ -230,7 +230,7 @@ def phabricator_api(method, data):
 	after = None
 
 	while True:
-		print(f"\tOffset {offset:n}", file=sys.stderr)
+		logging.info("\tOffset %s", offset)
 
 		try:
 			r = session.post(
@@ -239,10 +239,10 @@ def phabricator_api(method, data):
 			r.raise_for_status()
 			result = r.json()
 		except HTTPError as e:
-			print(e, r.text, file=sys.stderr)
+			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
 		except RequestException as e:
-			print(e, file=sys.stderr)
+			logging.critical("%s", e)
 			sys.exit(1)
 
 		results.extend(result["result"]["data"])
@@ -262,7 +262,7 @@ def hg_get_revisions(repo):
 	node = None
 
 	while True:
-		print(f"\tnode {node} ({len(revisions):n})", file=sys.stderr)
+		logging.info("\tnode %s (%s)", node, len(revisions))
 
 		try:
 			r = session.get(
@@ -271,10 +271,10 @@ def hg_get_revisions(repo):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			print(e, r.text, file=sys.stderr)
+			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
 		except RequestException as e:
-			print(e, file=sys.stderr)
+			logging.critical("%s", e)
 			sys.exit(1)
 
 		revisions.extend(data["changesets"][1:] if node else data["changesets"])
@@ -284,7 +284,7 @@ def hg_get_revisions(repo):
 
 		node = data["changesets"][-1]["node"]
 
-	print(len(revisions), data["changeset_count"], file=sys.stderr)
+	logging.info("%s %s", len(revisions), data["changeset_count"])
 
 	return revisions
 
@@ -357,16 +357,16 @@ def main():
 	if not os.path.exists(file):
 		bugs = []
 
-		starttime = time.perf_counter()
+		start = time.perf_counter()
 
 		for product, component in PRODUCTS:
-			print(f"Processing product(s): {product!r}\tcomponent(s): {component!r}\n", file=sys.stderr)
+			logging.info("Processing product(s): %r\tcomponent(s): %r", product, component)
 
 			data = get_all_bugs(product, component, start_date)
 			bugs.extend(data)
 
-		endtime = time.perf_counter()
-		print(f"Downloaded bugs in {output_duration(timedelta(seconds=endtime - starttime))}.", file=sys.stderr)
+		end = time.perf_counter()
+		logging.info("Downloaded bugs in %s.", output_duration(timedelta(seconds=end - start)))
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(bugs, f, ensure_ascii=False, indent="\t")
@@ -392,9 +392,9 @@ def main():
 	file = os.path.join(f"{end_date:%Y-%m}", f"Phabricator_revisions_{REPOSITORY}.json")
 
 	if not os.path.exists(file):
-		print(f"Downloading Phabricator revisions: {REPOSITORY}\n", file=sys.stderr)
+		logging.info("Downloading Phabricator revisions: %s", REPOSITORY)
 
-		starttime = time.perf_counter()
+		start = time.perf_counter()
 
 		revisions = phabricator_api(
 			"differential.revision.search",
@@ -406,8 +406,8 @@ def main():
 			},
 		)
 
-		endtime = time.perf_counter()
-		print(f"Downloaded revisions in {output_duration(timedelta(seconds=endtime - starttime))}.", file=sys.stderr)
+		end = time.perf_counter()
+		logging.info("Downloaded revisions in %s.", output_duration(timedelta(seconds=end - start)))
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(revisions, f, ensure_ascii=False, indent="\t")
@@ -420,14 +420,14 @@ def main():
 	file = os.path.join(f"{end_date:%Y-%m}", f"HG_commits_{REPOSITORY}.json")
 
 	if not os.path.exists(file):
-		print(f"Downloading Mozilla HG commits: {REPOSITORY}\n", file=sys.stderr)
+		logging.info("Downloading Mozilla HG commits: %s", REPOSITORY)
 
-		starttime = time.perf_counter()
+		start = time.perf_counter()
 
 		commits = hg_get_revisions(REPOSITORY)
 
-		endtime = time.perf_counter()
-		print(f"Downloaded commits in {output_duration(timedelta(seconds=endtime - starttime))}.", file=sys.stderr)
+		end = time.perf_counter()
+		logging.info("Downloaded commits in %s.", output_duration(timedelta(seconds=end - start)))
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(commits, f, ensure_ascii=False, indent="\t")
@@ -454,13 +454,14 @@ def main():
 	missing1 = {int(revision) for commit in commits for revision in HG_RE.findall(commit["desc"])} - {
 		revision["id"] for revision in revisions
 	}
-	print(f"Warning: Missing Phabricator revisions: {len(missing1):n} ({', '.join(map(str, sorted(missing1)))})", file=sys.stderr)
+	logging.warning("Missing Phabricator revisions: %s (%s)", len(missing1), ", ".join(map(str, sorted(missing1))))
 	missing2 = {int(revision) for commit in commits for revision in HG_RE.findall(commit["desc"])} - set(revision_dates)
-	print(f"Warning: Missing revisions from BMO bug comments: {len(missing2):n}", file=sys.stderr)
+	logging.warning("Missing revisions from BMO bug comments: %s", len(missing2))
 	missing = missing2 - missing1
-	print(
-		f"Missing revisions from BMO bug comments - Missing Phabricator revisions: {len(missing):n} ({', '.join(map(str, sorted(missing)))})",
-		file=sys.stderr,
+	logging.info(
+		"Missing revisions from BMO bug comments - Missing Phabricator revisions: %s (%s)",
+		len(missing),
+		", ".join(map(str, sorted(missing))),
 	)
 
 	file = os.path.join(f"{end_date:%Y-%m}", "Phabricator_users.json")

@@ -122,7 +122,7 @@ def get_all_ideas(label):
 	offset = 0
 
 	while True:
-		print(f"\tOffset: {offset:n}", file=sys.stderr)
+		logging.info("\tOffset: %s", offset)
 
 		try:
 			r = session.get(
@@ -135,10 +135,10 @@ def get_all_ideas(label):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			print(e, r.text, file=sys.stderr)
+			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
 		except RequestException as e:
-			print(e, file=sys.stderr)
+			logging.critical("%s", e)
 			sys.exit(1)
 
 		ideas.extend(data["data"]["items"])
@@ -191,16 +191,16 @@ def main():
 	if not os.path.exists(file):
 		ideas = {}
 
-		starttime = time.perf_counter()
+		start = time.perf_counter()
 
 		for label in LABELS:
-			print(f"Label: {label!r}", file=sys.stderr)
+			logging.info("Label: %r", label)
 
 			data = get_all_ideas(label)
 			ideas[label] = data
 
-		endtime = time.perf_counter()
-		print(f"Downloaded ideas in {output_duration(timedelta(seconds=endtime - starttime))}.", file=sys.stderr)
+		end = time.perf_counter()
+		logging.info("Downloaded ideas in %s.", output_duration(timedelta(seconds=end - start)))
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(ideas, f, ensure_ascii=False, indent="\t")

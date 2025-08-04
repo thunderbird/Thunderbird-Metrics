@@ -104,10 +104,10 @@ def get_languages():
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.error("%s\n%r", e, r.text)
 		return {}
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.error("%s", e)
 		return {}
 
 	return data
@@ -119,10 +119,10 @@ def get_stats(file):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return data
@@ -134,10 +134,10 @@ def get_data(file):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return data

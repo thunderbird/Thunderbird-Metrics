@@ -62,6 +62,7 @@ ignore = [
 	"PYI024",
 	"FURB101",
 	"FURB167",
+	"LOG015",
 	"RUF001",
 	"RUF002",
 	"RUF003",

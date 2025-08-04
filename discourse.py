@@ -105,10 +105,10 @@ def get_categories():
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return data["category_list"]["categories"]
@@ -120,10 +120,10 @@ def get_category(aid):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		print(e, r.text, file=sys.stderr)
+		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
 	except RequestException as e:
-		print(e, file=sys.stderr)
+		logging.critical("%s", e)
 		sys.exit(1)
 
 	return data["category"]
@@ -135,17 +135,17 @@ def get_topics(slug, aid):
 	page = 0
 
 	while True:
-		print(f"\tPage {page} ({len(topics):n})", file=sys.stderr)
+		logging.info("\tPage %s (%s)", page, len(topics))
 
 		try:
 			r = session.get(f"{DISCOURSE_BASE_URL}c/{slug}/{aid}.json", params={"per_page": LIMIT, "page": page}, timeout=30)
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			print(e, r.text, file=sys.stderr)
+			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
 		except RequestException as e:
-			print(e, file=sys.stderr)
+			logging.critical("%s", e)
 			sys.exit(1)
 
 		users.update((user["id"], user) for user in data["users"])
@@ -198,25 +198,25 @@ def main():
 	category_ids = []
 	for category in categories:
 		if category["slug"] == SLUG:
-			# print(f"{category['name']!r}", file=sys.stderr)
+			# logging.info("%r", category['name'])
 
 			category_ids.append(category["id"])
 			category_ids.extend(category["subcategory_ids"])
 
 			break
 	else:
-		print(f"Error: Could not find {SLUG!r}", file=sys.stderr)
+		logging.critical("Could not find %r", SLUG)
 		sys.exit(1)
 
 	file = os.path.join(f"{end_date:%Y-%m}", "Discourse_topics.json")
 
 	if not os.path.exists(file):
-		starttime = time.perf_counter()
+		start = time.perf_counter()
 
 		data = get_topics(SLUG, category_ids[0])
 
-		endtime = time.perf_counter()
-		print(f"Downloaded topics in {endtime - starttime:n} seconds.", file=sys.stderr)
+		end = time.perf_counter()
+		logging.info("Downloaded topics in %s seconds.", end - start)
 
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(data, f, ensure_ascii=False, indent="\t")
