@@ -328,26 +328,39 @@ def main():
 
 	print("\n### Top Ideas/Discussions by Total Kudos\n")
 
-	rows = []
-	for i, item in enumerate(
-		sorted(
-			(item for item in items.values() if "status" not in item or not item["status"]["completed"]),
-			key=lambda x: x["kudos"]["sum"]["weight"],
-			reverse=True,
-		),
-		1,
-	):
-		rows.append((
-			f"{i:n}",
-			f"{item['kudos']['sum']['weight']:n}",
-			item["board"]["id"],
-			", ".join(labels[item["id"]]),
-			item["status"]["name"] if "status" in item else "-",
-			item["subject"],
-			item["view_href"],
-		))
-		if i >= 20:
-			break
+	with open(os.path.join(adir, "Mozilla Connect_kudos.csv"), "w", newline="", encoding="utf-8") as csvfile:
+		writer = csv.writer(csvfile)
+		writer.writerow(("Kudos", "Board", "Labels", "Idea Status", "Subject", "URL"))
+
+		rows = []
+		for i, item in enumerate(
+			sorted(
+				(item for item in items.values() if "status" not in item or not item["status"]["completed"]),
+				key=lambda x: x["kudos"]["sum"]["weight"],
+				reverse=True,
+			),
+			1,
+		):
+			if not item["kudos"]["sum"]["weight"]:
+				break
+			writer.writerow((
+				item["kudos"]["sum"]["weight"],
+				item["board"]["id"],
+				", ".join(labels[item["id"]]),
+				item["status"]["name"] if "status" in item else "",
+				item["subject"],
+				item["view_href"],
+			))
+			if i <= 20:
+				rows.append((
+					f"{i:n}",
+					f"{item['kudos']['sum']['weight']:n}",
+					item["board"]["id"],
+					", ".join(labels[item["id"]]),
+					item["status"]["name"] if "status" in item else "-",
+					item["subject"],
+					item["view_href"],
+				))
 
 	output_markdown_table(rows, ("#", "Kudos", "Board", "Labels", "Idea Status", "Subject", "URL"))
 

@@ -784,22 +784,38 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 
 	print("\n### Top Open Bugs by Total Votes\n")
 
-	rows = []
-	for i, item in enumerate(sorted(aopen, key=operator.itemgetter("votes"), reverse=True), 1):
-		votes = by_level(item, items, "votes")
-		rows.append((
-			f"{i:n}",
-			f"{item['votes']:n}{''.join(f' + {sum(vote):n}' for vote in votes if any(vote))}",
-			f"{sum(item['comments'][0]['reactions'].values()) if item['comments'] else 0:n}",
-			# f"{item['id']}",
-			item["type"],
-			item["product"],
-			item["component"],
-			textwrap.shorten(item["summary"], 80, placeholder="…"),
-			f"{BUGZILLA_SHORT_URL}{item['id']}",
-		))
-		if i >= 20:
-			break
+	with open(os.path.join(adir, "BMO_open_bug_votes.csv"), "w", newline="", encoding="utf-8") as csvfile:
+		writer = csv.writer(csvfile)
+		writer.writerow(("Votes", "Total Votes", "Reactions", "Type", "Product", "Component", "Summary", "URL"))
+
+		rows = []
+		for i, item in enumerate(sorted(aopen, key=operator.itemgetter("votes"), reverse=True), 1):
+			if not item["votes"]:
+				break
+			votes = by_level(item, items, "votes")
+			writer.writerow((
+				f"{item['votes']}{''.join(f' + {sum(vote)}' for vote in votes if any(vote))}",
+				item["votes"] + sum(map(sum, votes)),
+				sum(item["comments"][0]["reactions"].values()) if item["comments"] else 0,
+				# item['id'],
+				item["type"],
+				item["product"],
+				item["component"],
+				item["summary"],
+				f"{BUGZILLA_SHORT_URL}{item['id']}",
+			))
+			if i <= 20:
+				rows.append((
+					f"{i:n}",
+					f"{item['votes']:n}{''.join(f' + {sum(vote):n}' for vote in votes if any(vote))}",
+					f"{sum(item['comments'][0]['reactions'].values()) if item['comments'] else 0:n}",
+					# f"{item['id']}",
+					item["type"],
+					item["product"],
+					item["component"],
+					textwrap.shorten(item["summary"], 80, placeholder="…"),
+					f"{BUGZILLA_SHORT_URL}{item['id']}",
+				))
 
 	output_markdown_table(rows, ("#", "Votes", "Reactions", "Type", "Product", "Component", "Summary", "URL"))
 

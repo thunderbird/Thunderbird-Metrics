@@ -848,21 +848,38 @@ def main():
 
 	print("\n### Top Open Issues and Pull Requests by Total Reactions\n")
 
-	rows = []
-	for i, item in enumerate(
-		sorted((issue for issue in issues if not issue["closed_at"]), key=lambda x: x["reactions"]["total_count"], reverse=True), 1
-	):
-		url = urlparse(item["repository_url"])
-		rows.append((
-			f"{i:n}",
-			f"{item['reactions']['total_count']:n}",
-			url.path.split("/")[-1],
-			item["type"]["name"] if item["type"] else ", ".join(label["name"] for label in item["labels"]),
-			textwrap.shorten(item["title"], 80, placeholder="…"),
-			item["html_url"],
-		))
-		if i >= 20:
-			break
+	with open(os.path.join(adir, "GitHub_open_reactions.csv"), "w", newline="", encoding="utf-8") as csvfile:
+		writer = csv.writer(csvfile)
+		writer.writerow(("Total Reactions", "+1 Reactions", "Repository", "Type", "Labels", "Title", "URL"))
+
+		rows = []
+		for i, item in enumerate(
+			sorted(
+				(issue for issue in issues if not issue["closed_at"]), key=lambda x: x["reactions"]["total_count"], reverse=True
+			),
+			1,
+		):
+			if not item["reactions"]["total_count"]:
+				break
+			url = urlparse(item["repository_url"])
+			writer.writerow((
+				item["reactions"]["total_count"],
+				item["reactions"]["+1"],
+				url.path.split("/")[-1],
+				item["type"]["name"] if item["type"] else "",
+				", ".join(label["name"] for label in item["labels"]),
+				item["title"],
+				item["html_url"],
+			))
+			if i <= 20:
+				rows.append((
+					f"{i:n}",
+					f"{item['reactions']['total_count']:n}",
+					url.path.split("/")[-1],
+					item["type"]["name"] if item["type"] else ", ".join(label["name"] for label in item["labels"]),
+					textwrap.shorten(item["title"], 80, placeholder="…"),
+					item["html_url"],
+				))
 
 	output_markdown_table(rows, ("#", "Reactions", "Repository", "Type/Labels", "Title", "URL"))
 
