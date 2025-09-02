@@ -850,7 +850,7 @@ def main():
 
 	with open(os.path.join(adir, "GitHub_open_reactions.csv"), "w", newline="", encoding="utf-8") as csvfile:
 		writer = csv.writer(csvfile)
-		writer.writerow(("Total Reactions", "+1 Reactions", "Repository", "Type", "Labels", "Title", "URL"))
+		writer.writerow(("Total Reactions", "+1 Reactions", "Repository", "Type", "Labels", "Title", "Body", "URL"))
 
 		rows = []
 		for i, item in enumerate(
@@ -869,6 +869,7 @@ def main():
 				item["type"]["name"] if item["type"] else "",
 				", ".join(label["name"] for label in item["labels"]),
 				item["title"],
+				" ".join(item["body"].split()) if item["body"] else "",
 				item["html_url"],
 			))
 			if i <= 20:

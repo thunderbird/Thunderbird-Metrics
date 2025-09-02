@@ -30,7 +30,7 @@ session = requests.Session()
 session.headers["User-Agent"] = (
 	f"Thunderbird Metrics ({session.headers['User-Agent']} {platform.python_implementation()}/{platform.python_version()})"
 )
-session.mount("https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, backoff_factor=1)))
+session.mount("https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, backoff_factor=1, allowed_methods=None)))
 atexit.register(session.close)
 
 TOPICBOX_BASE_URL = "https://thunderbird.topicbox.com/"

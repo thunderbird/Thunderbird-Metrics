@@ -34,7 +34,7 @@ session = requests.Session()
 session.headers["User-Agent"] = (
 	f"Thunderbird Metrics ({session.headers['User-Agent']} {platform.python_implementation()}/{platform.python_version()})"
 )
-session.mount("https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(5, backoff_factor=1)))
+session.mount("https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(5, backoff_factor=1, allowed_methods=None)))
 atexit.register(session.close)
 
 BUGZILLA_BASE_URL = "https://bugzilla.mozilla.org/"
@@ -252,6 +252,7 @@ def phabricator_api(method, data):
 			break
 
 		offset += 100
+		time.sleep(1)
 
 	return results
 
@@ -718,6 +719,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 			if data:
 				phab_users[user] = data[0]
 				changed = True
+			time.sleep(1)
 
 		bmo_user = bmo_user_ids[phab_users[user]["id"]]
 		if bmo_user["name"] not in phab_users:
@@ -786,7 +788,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 
 	with open(os.path.join(adir, "BMO_open_bug_votes.csv"), "w", newline="", encoding="utf-8") as csvfile:
 		writer = csv.writer(csvfile)
-		writer.writerow(("Votes", "Total Votes", "Reactions", "Type", "Product", "Component", "Summary", "URL"))
+		writer.writerow(("Votes", "Total Votes", "Reactions", "Type", "Product", "Component", "Summary", "Description", "URL"))
 
 		rows = []
 		for i, item in enumerate(sorted(aopen, key=operator.itemgetter("votes"), reverse=True), 1):
@@ -802,6 +804,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 				item["product"],
 				item["component"],
 				item["summary"],
+				" ".join(item["comments"][0]["text"].split()) if item["comments"] else "",
 				f"{BUGZILLA_SHORT_URL}{item['id']}",
 			))
 			if i <= 20:

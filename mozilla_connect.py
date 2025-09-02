@@ -19,6 +19,7 @@ import sys
 import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+from html.parser import HTMLParser
 from itertools import starmap
 
 import matplotlib.pyplot as plt
@@ -43,6 +44,24 @@ LABELS = ("Thunderbird", "Thunderbird Android", "Thunderbird for iOS")
 STATUSES = ("new", "trending-idea", "needs_info", "investigating", "accepted", "not-right-now", "delivered", "declined")
 
 LIMIT = 200
+
+
+class HTMLToText(HTMLParser):
+	__slots__ = ("output",)
+
+	def __init__(self):
+		super().__init__()
+		self.output = []
+
+	def handle_data(self, data):
+		self.output.append(data)
+
+
+def html_to_text(html):
+	p = HTMLToText()
+	p.feed(html)
+	return " ".join("".join(p.output).split())
+
 
 # r"([]!#()*+.<>[\\_`{|}-])"
 MARKDOWN_ESCAPE = re.compile(r"([]!#*<>[\\_`|])")
@@ -128,7 +147,7 @@ def get_all_ideas(label):
 			r = session.get(
 				f"{MOZILLA_CONNECT_API_URL}search",
 				params={
-					"q": f"SELECT id, subject, view_href, board, conversation, kudos.sum(weight), post_time, status FROM messages WHERE labels.text = {label!r} AND depth = 0 ORDER BY post_time ASC LIMIT {LIMIT}{f' CURSOR {cursor!r}' if cursor else ''}"
+					"q": f"SELECT id, subject, body, view_href, board, conversation, kudos.sum(weight), post_time, status FROM messages WHERE labels.text = {label!r} AND depth = 0 ORDER BY post_time ASC LIMIT {LIMIT}{f' CURSOR {cursor!r}' if cursor else ''}"
 				},
 				timeout=30,
 			)
@@ -330,7 +349,7 @@ def main():
 
 	with open(os.path.join(adir, "Mozilla Connect_kudos.csv"), "w", newline="", encoding="utf-8") as csvfile:
 		writer = csv.writer(csvfile)
-		writer.writerow(("Kudos", "Board", "Labels", "Idea Status", "Subject", "URL"))
+		writer.writerow(("Kudos", "Board", "Labels", "Idea Status", "Subject", "Body", "URL"))
 
 		rows = []
 		for i, item in enumerate(
@@ -349,6 +368,7 @@ def main():
 				", ".join(labels[item["id"]]),
 				item["status"]["name"] if "status" in item else "",
 				item["subject"],
+				html_to_text(item["body"]),
 				item["view_href"],
 			))
 			if i <= 20:
