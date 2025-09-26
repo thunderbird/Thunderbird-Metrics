@@ -13,7 +13,7 @@ if [[ $# -ne 0 ]]; then
 	exit 1
 fi
 
-REPOSITORY='https://github.com/tdulcet/Thunderbird-Metrics'
+REPOSITORY='https://github.com/thunderbird/Thunderbird-Metrics'
 
 date=$(date -d "$(date +%Y-%m-15) -1 month" +%s)
 printf -v date1 '%(%Y-%m)T' "$date"
@@ -63,9 +63,9 @@ $(time python3 -OO code_coverage.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
-
--Teal
+Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
+   
+-The Community Team
 EOF
 
 echo -e "\nGitHub\n"
@@ -85,9 +85,9 @@ $(time python3 -OO github.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
-
--Teal
+Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
+   
+-The Community Team
 EOF
 
 echo -e "\nThunderbird Stats and Mozilla Connect\n"
@@ -109,9 +109,9 @@ $(time python3 -OO mozilla_connect.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
-
--Teal
+Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
+   
+-The Community Team
 EOF
 
 echo -e "\nThunderbird Add-ons/ATN\n"
@@ -131,9 +131,9 @@ $(time python3 -OO addons.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
-
--Teal
+Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
+   
+-The Community Team
 EOF
 
 echo -e "\nSupport (Mozilla Support Forum/SUMO, Mozilla Discourse and Topicbox)\n"
@@ -159,9 +159,9 @@ $(time python3 -OO topicbox.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
-
--Teal
+Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
+   
+-The Community Team
 EOF
 
 echo -e "\nLocalization (Pontoon and Weblate)\n"
@@ -184,7 +184,7 @@ $(time python3 -OO weblate.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
-
--Teal
+Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
+   
+-The Community Team
 EOF
