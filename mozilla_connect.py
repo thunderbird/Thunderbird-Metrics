@@ -47,11 +47,30 @@ LIMIT = 200
 
 
 class HTMLToText(HTMLParser):
-	__slots__ = ("output",)
+	__slots__ = ("output", "links", "images")
 
 	def __init__(self):
 		super().__init__()
 		self.output = []
+		self.links = []
+		self.images = []
+
+	def handle_starttag(self, tag, attrs):
+		attrs = dict(attrs)
+		if tag == "a":
+			if "href" in attrs:
+				self.links.append(attrs["href"])
+		elif tag == "img":
+			if "src" in attrs:
+				self.images.append(attrs["src"])
+
+	def handle_endtag(self, tag):
+		if tag == "a":
+			if self.links:
+				self.output.append(f"<{self.links.pop()}>")
+		elif tag == "img":
+			if self.images:
+				self.output.append(f"<{self.images.pop()}>")
 
 	def handle_data(self, data):
 		self.output.append(data)
@@ -147,7 +166,7 @@ def get_all_ideas(label):
 			r = session.get(
 				f"{MOZILLA_CONNECT_API_URL}search",
 				params={
-					"q": f"SELECT id, subject, body, view_href, board, conversation, kudos.sum(weight), post_time, status FROM messages WHERE labels.text = {label!r} AND depth = 0 ORDER BY post_time ASC LIMIT {LIMIT}{f' CURSOR {cursor!r}' if cursor else ''}"
+					"q": f"SELECT id, author, subject, body, view_href, board, conversation, parent, kudos.sum(weight), post_time, status, depth FROM messages WHERE labels.text = {label!r} ORDER BY post_time ASC LIMIT {LIMIT}{f' CURSOR {cursor!r}' if cursor else ''}"
 				},
 				timeout=30,
 			)
@@ -240,6 +259,15 @@ def main():
 		for idea in ideas[label]:
 			labels.setdefault(idea["id"], []).append(label)
 
+	aitems = [item for item in items.values() if not item["depth"]]
+	duplicates = {item["id"]: [] for item in items.values()}
+
+	for aid, item in items.items():
+		if item["depth"]:
+			if item["parent"]["id"] not in duplicates:
+				logging.warning("Could not find idea: %s", item["parent"]["view_href"])
+			duplicates.setdefault(item["parent"]["id"], []).append(aid)
+
 	created = {(adate.year, adate.month): [] for adate in dates}
 	deltas = []
 
@@ -254,7 +282,7 @@ def main():
 
 	print(f"### Total Thunderbird Ideas/Discussions: {items_count:n}\n")
 
-	board_counts = Counter(item["board"]["id"] for item in items.values())
+	board_counts = Counter(item["board"]["id"] for item in aitems)
 
 	print("#### Boards\n")
 	output_markdown_table([(key, f"{count:n}") for key, count in board_counts.most_common()], ("Board", "Count"))
@@ -262,7 +290,7 @@ def main():
 	print("\n#### Labels\n")
 	output_markdown_table([(label, f"{len(ideas[label]):n}") for label in LABELS], ("Label", "Count"))
 
-	status_counts = Counter((item["status"]["key"], item["status"]["name"]) for item in items.values() if "status" in item)
+	status_counts = Counter((item["status"]["key"], item["status"]["name"]) for item in aitems if "status" in item)
 	idea_count = board_counts["ideas"]
 
 	print("\n#### Idea Statuses\n")
@@ -274,7 +302,7 @@ def main():
 		("Idea Status", "Count"),
 	)
 
-	completed_count = sum(1 for item in items.values() if "status" in item and item["status"]["completed"])
+	completed_count = sum(1 for item in aitems if "status" in item and item["status"]["completed"])
 
 	print(f"\nIdeas completed: {completed_count:n} / {idea_count:n} ({completed_count / idea_count:.4%})")
 
@@ -285,7 +313,7 @@ def main():
 	)
 
 	discussion_count = board_counts["discussions"]
-	solved_count = sum(1 for item in items.values() if item["board"]["id"] == "discussions" and item["conversation"]["solved"])
+	solved_count = sum(1 for item in aitems if item["board"]["id"] == "discussions" and item["conversation"]["solved"])
 
 	print("\n#### Discussions\n")
 	print(f"* Discussions solved: {solved_count:n} / {discussion_count:n} ({solved_count / discussion_count:.4%})")
@@ -349,12 +377,12 @@ def main():
 
 	with open(os.path.join(adir, "Mozilla Connect_kudos.csv"), "w", newline="", encoding="utf-8") as csvfile:
 		writer = csv.writer(csvfile)
-		writer.writerow(("Kudos", "Board", "Labels", "Idea Status", "Subject", "Body", "URL"))
+		writer.writerow(("Kudos", "Total Kudos", "Date (UTC)", "Board", "Labels", "Idea Status", "Subject", "Body", "URL"))
 
 		rows = []
 		for i, item in enumerate(
 			sorted(
-				(item for item in items.values() if "status" not in item or not item["status"]["completed"]),
+				(item for item in aitems if "status" not in item or not item["status"]["completed"]),
 				key=lambda x: x["kudos"]["sum"]["weight"],
 				reverse=True,
 			),
@@ -362,8 +390,11 @@ def main():
 		):
 			if not item["kudos"]["sum"]["weight"]:
 				break
+			kudos = sum(items[aid]["kudos"]["sum"]["weight"] for aid in duplicates[item["id"]])
 			writer.writerow((
-				item["kudos"]["sum"]["weight"],
+				f"{item['kudos']['sum']['weight']}{f' + {kudos}' if kudos else ''}",
+				item["kudos"]["sum"]["weight"] + kudos,
+				datetime.fromisoformat(item["post_time"]).astimezone(timezone.utc).isoformat(),
 				item["board"]["id"],
 				", ".join(labels[item["id"]]),
 				item["status"]["name"] if "status" in item else "",
@@ -374,7 +405,7 @@ def main():
 			if i <= 20:
 				rows.append((
 					f"{i:n}",
-					f"{item['kudos']['sum']['weight']:n}",
+					f"{item['kudos']['sum']['weight']:n}{f' + {kudos:n}' if kudos else ''}",
 					item["board"]["id"],
 					", ".join(labels[item["id"]]),
 					item["status"]["name"] if "status" in item else "-",
@@ -386,12 +417,38 @@ def main():
 
 	print(f"\nSee full ideas list: {MOZILLA_CONNECT_BASE_URL}t5/ideas/idb-p/ideas/label-name/thunderbird/tab/most-kudoed")
 
+	print("\n### Top Ideas/Discussions by Total Duplicates\n")
+
+	rows = []
+	for i, item in enumerate(
+		sorted(
+			(item for item in aitems if "status" not in item or not item["status"]["completed"]),
+			key=lambda x: len(duplicates[x["id"]]),
+			reverse=True,
+		),
+		1,
+	):
+		dupes = sum(len(duplicates[aid]) for aid in duplicates[item["id"]])
+		rows.append((
+			f"{i:n}",
+			f"{len(duplicates[item['id']]):n}{f' + {dupes:n}' if dupes else ''}",
+			item["board"]["id"],
+			", ".join(labels[item["id"]]),
+			item["status"]["name"] if "status" in item else "-",
+			item["subject"],
+			item["view_href"],
+		))
+		if i >= 10:
+			break
+
+	output_markdown_table(rows, ("#", "Duplicates", "Board", "Labels", "Idea Status", "Subject", "URL"))
+
 	print("\n### Top Ideas/Discussions by Total Replies\n")
 
 	rows = []
 	for i, item in enumerate(
 		sorted(
-			(item for item in items.values() if "status" not in item or not item["status"]["completed"]),
+			(item for item in aitems if "status" not in item or not item["status"]["completed"]),
 			key=lambda x: x["conversation"]["messages_count"],
 			reverse=True,
 		),

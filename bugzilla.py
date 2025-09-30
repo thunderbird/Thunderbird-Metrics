@@ -252,7 +252,7 @@ def phabricator_api(method, data):
 			break
 
 		offset += 100
-		time.sleep(1)
+		time.sleep(2)
 
 	return results
 
@@ -719,7 +719,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 			if data:
 				phab_users[user] = data[0]
 				changed = True
-			time.sleep(1)
+			time.sleep(2)
 
 		bmo_user = bmo_user_ids[phab_users[user]["id"]]
 		if bmo_user["name"] not in phab_users:
@@ -788,7 +788,18 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 
 	with open(os.path.join(adir, "BMO_open_bug_votes.csv"), "w", newline="", encoding="utf-8") as csvfile:
 		writer = csv.writer(csvfile)
-		writer.writerow(("Votes", "Total Votes", "Reactions", "Type", "Product", "Component", "Summary", "Description", "URL"))
+		writer.writerow((
+			"Votes",
+			"Total Votes",
+			"Reactions",
+			"Date (UTC)",
+			"Type",
+			"Product",
+			"Component",
+			"Summary",
+			"Description",
+			"URL",
+		))
 
 		rows = []
 		for i, item in enumerate(sorted(aopen, key=operator.itemgetter("votes"), reverse=True), 1):
@@ -799,6 +810,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 				f"{item['votes']}{''.join(f' + {sum(vote)}' for vote in votes if any(vote))}",
 				item["votes"] + sum(map(sum, votes)),
 				sum(item["comments"][0]["reactions"].values()) if item["comments"] else 0,
+				item["creation_time"],
 				# item['id'],
 				item["type"],
 				item["product"],

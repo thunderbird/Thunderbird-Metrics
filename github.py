@@ -850,7 +850,7 @@ def main():
 
 	with open(os.path.join(adir, "GitHub_open_reactions.csv"), "w", newline="", encoding="utf-8") as csvfile:
 		writer = csv.writer(csvfile)
-		writer.writerow(("Total Reactions", "+1 Reactions", "Repository", "Type", "Labels", "Title", "Body", "URL"))
+		writer.writerow(("Total Reactions", "+1 Reactions", "Date (UTC)", "Repository", "Type", "Labels", "Title", "Body", "URL"))
 
 		rows = []
 		for i, item in enumerate(
@@ -865,6 +865,7 @@ def main():
 			writer.writerow((
 				item["reactions"]["total_count"],
 				item["reactions"]["+1"],
+				item["created_at"],
 				url.path.split("/")[-1],
 				item["type"]["name"] if item["type"] else "",
 				", ".join(label["name"] for label in item["labels"]),
