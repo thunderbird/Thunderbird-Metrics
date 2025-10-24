@@ -22,6 +22,7 @@ import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
+from json.decoder import JSONDecodeError
 from urllib.parse import urlparse
 
 import matplotlib.pyplot as plt
@@ -193,8 +194,8 @@ def github_api(url, params=None):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	if not int(r.headers["x-ratelimit-remaining"]):
