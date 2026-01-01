@@ -106,6 +106,7 @@ def output_duration(delta):
 	m, s = divmod(delta.seconds, 60)
 	h, m = divmod(m, 60)
 	y, d = divmod(delta.days, 365)
+	ms, _us = divmod(delta.microseconds, 1000)
 	text = []
 	if y:
 		text.append(f"{y:n} year{'s' if y != 1 else ''}")
@@ -117,6 +118,8 @@ def output_duration(delta):
 		text.append(f"{m:n} minute{'s' if m != 1 else ''}")
 	if y or d or h or m or s:
 		text.append(f"{s:n} second{'s' if s != 1 else ''}")
+	if not (y or d or h or m):
+		text.append(f"{ms:n} millisecond{'s' if ms != 1 else ''}")
 
 	return ", ".join(text)
 

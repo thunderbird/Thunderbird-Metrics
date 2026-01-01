@@ -382,9 +382,10 @@ def main():
 		addons_count = len(addons)
 		duplicates_count = {key: addons_count - len({addon[key] for addon in addons}) for key in ("id", "slug", "guid")}
 
-		print(
-			f"#### Total {name}s: {addons_count:n}\t{'(' + ', '.join(f'duplicate {key}s: {value:n}' for key, value in duplicates_count.items() if value) + ')' if any(duplicates_count.values()) else ''}\n"
-		)
+		print(f"#### Total {name}s: {addons_count:n}\n")
+
+		if any(duplicates_count.values()):
+			print(f"({', '.join(f'duplicate {key}s: {value:n}' for key, value in duplicates_count.items() if value)})\n")
 
 		# disabled_count = sum(1 for addon in addons if addon["is_disabled"])
 		experimental_count = sum(1 for addon in addons if addon["is_experimental"])

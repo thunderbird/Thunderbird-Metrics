@@ -38,7 +38,7 @@ session.headers["User-Agent"] = (
 session.mount(
 	"https://",
 	requests.adapters.HTTPAdapter(
-		max_retries=urllib3.util.Retry(3, status_forcelist=(http.client.INTERNAL_SERVER_ERROR,), backoff_factor=1)
+		max_retries=urllib3.util.Retry(5, status_forcelist=(http.client.INTERNAL_SERVER_ERROR,), backoff_factor=1)
 	),
 )
 atexit.register(session.close)
@@ -129,7 +129,8 @@ def get_questions(product, start_date):
 
 		try:
 			r = session.get(
-				f"{SUMO_API_URL}question",
+				f"{SUMO_API_URL}question/",
+				headers={"User-Agent": f"{session.headers['User-Agent']} {int(time.time())}"},
 				params={"product": product, "created__gt": f"{start_date:%Y-%m-%d}", "ordering": "+created", "page": page},
 				timeout=30,
 			)
@@ -149,7 +150,7 @@ def get_questions(product, start_date):
 
 		page += 1
 
-		time.sleep(0.25)
+		time.sleep(0.5)
 
 	return questions
 

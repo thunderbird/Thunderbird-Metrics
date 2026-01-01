@@ -160,6 +160,7 @@ OPERATING_SYSTEMS = {
 	"Darwin": "macOS",
 	"Linux": "Linux",
 	# Firefox: https://github.com/mozilla/ensemble-transposer/issues/208
+	"Darwin-25.x": "macOS Tahoe",
 	"Darwin-24.x": "macOS Sequoia",
 	"Darwin-23.x": "macOS Sonoma",
 	"Darwin-22.x": "macOS Ventura",

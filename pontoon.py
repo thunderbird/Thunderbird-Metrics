@@ -33,10 +33,12 @@ session.mount("https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util
 atexit.register(session.close)
 
 PONTOON_BASE_URL = "https://pontoon.mozilla.org/"
-PONTOON_API_URL = f"{PONTOON_BASE_URL}graphql"
+PONTOON_API_URL = f"{PONTOON_BASE_URL}api/v2/"
 
 FF_PROJECTS = ("firefox", "firefox-for-android", "firefox-for-ios")
 PROJECTS = ("thunderbird", "thunderbirdnet")
+
+LIMIT = 1000
 
 
 def output_markdown_table(rows, header):
@@ -84,25 +86,40 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 
 def get_locales():
-	try:
-		r = session.get(PONTOON_API_URL, params={"query": "{locales{code,name,population}}"}, timeout=30)
-		r.raise_for_status()
-		data = r.json()
-	except HTTPError as e:
-		logging.critical("%s\n%r", e, r.text)
-		sys.exit(1)
-	except (RequestException, JSONDecodeError) as e:
-		logging.critical("%s: %s", type(e).__name__, e)
-		sys.exit(1)
+	locales = []
+	page = 1
 
-	return data["data"]["locales"]
+	while True:
+		logging.info("\tPage %s (%s)", page, len(locales))
+
+		try:
+			r = session.get(
+				f"{PONTOON_API_URL}locales/",
+				params={"page": page, "page_size": LIMIT, "fields": "code,name,population"},
+				timeout=30,
+			)
+			r.raise_for_status()
+			data = r.json()
+		except HTTPError as e:
+			logging.critical("%s\n%r", e, r.text)
+			sys.exit(1)
+		except (RequestException, JSONDecodeError) as e:
+			logging.critical("%s: %s", type(e).__name__, e)
+			sys.exit(1)
+
+		locales.extend(data["results"])
+
+		if not data["next"]:
+			break
+
+		page += 1
+
+	return locales
 
 
 def get_ff_project(slug):
 	try:
-		r = session.get(
-			PONTOON_API_URL, params={"query": '{project(slug:"' + slug + '"){name,localizations{locale{code,name}}}}'}, timeout=30
-		)
+		r = session.get(f"{PONTOON_API_URL}projects/{slug}/", params={"fields": "name,localizations"}, timeout=30)
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
@@ -112,18 +129,14 @@ def get_ff_project(slug):
 		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
-	return data["data"]["project"]
+	return data
 
 
 def get_project(slug):
 	try:
 		r = session.get(
-			PONTOON_API_URL,
-			params={
-				"query": '{project(slug:"'
-				+ slug
-				+ '"){name,localizations{locale{code,name}totalStrings,missingStrings,complete,approvedStrings,unreviewedStrings}missingStrings,totalStrings,approvedStrings,unreviewedStrings}}'
-			},
+			f"{PONTOON_API_URL}projects/{slug}/",
+			params={"fields": "name,localizations,missing_strings,total_strings,approved_strings,unreviewed_strings"},
 			timeout=30,
 		)
 		r.raise_for_status()
@@ -135,7 +148,7 @@ def get_project(slug):
 		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
-	return data["data"]["project"]
+	return data
 
 
 def main():
@@ -207,19 +220,19 @@ def main():
 
 			writer.writerow(("name", "code", "approved", "unreviewed", "total"))
 
-			for item in sorted(data["localizations"], key=operator.itemgetter("approvedStrings"), reverse=True):
+			for item in sorted(data["localizations"], key=operator.itemgetter("approved_strings"), reverse=True):
 				writer.writerow((
 					item["locale"]["name"],
 					item["locale"]["code"],
-					item["approvedStrings"],
-					item["unreviewedStrings"],
-					item["totalStrings"],
+					item["approved_strings"],
+					item["unreviewed_strings"],
+					item["total_strings"],
 				))
 
 				labels.append(item["locale"]["name"])
 
-				localizations["Approved"].append(item["approvedStrings"])
-				localizations["Unreviewed"].append(item["unreviewedStrings"])
+				localizations["Approved"].append(item["approved_strings"])
+				localizations["Unreviewed"].append(item["unreviewed_strings"])
 
 		output_stacked_bar_graph(
 			adir,
@@ -237,13 +250,13 @@ def main():
 		for i, item in enumerate(
 			sorted(
 				(alocale for alocale in data["localizations"] if not alocale["complete"]),
-				key=operator.itemgetter("approvedStrings"),
+				key=operator.itemgetter("approved_strings"),
 				reverse=True,
 			),
 			1,
 		):
 			rows.append((
-				f"{item['approvedStrings'] / item['totalStrings']:.4%} ({item['approvedStrings']:n} / {item['totalStrings']:n})",
+				f"{item['approved_strings'] / item['total_strings']:.4%} ({item['approved_strings']:n} / {item['total_strings']:n})",
 				f"{item['locale']['name']!r} ({item['locale']['code']})",
 			))
 			if i >= 10:
@@ -252,21 +265,21 @@ def main():
 		output_markdown_table(rows, ("Approved %", "Locale"))
 
 		print(
-			f"\n**Total Translated Strings**: {data['approvedStrings']:n} / {data['totalStrings']:n} ({data['approvedStrings'] / data['totalStrings']:.4%})\n"
+			f"\n**Total Translated Strings**: {data['approved_strings']:n} / {data['total_strings']:n} ({data['approved_strings'] / data['total_strings']:.4%})\n"
 		)
 
 		print("#### Localizations with the most Unreviewed Strings\n")
 
 		rows = []
-		for i, item in enumerate(sorted(data["localizations"], key=operator.itemgetter("unreviewedStrings"), reverse=True), 1):
-			rows.append((f"{item['unreviewedStrings']:n}", f"{item['locale']['name']!r} ({item['locale']['code']})"))
+		for i, item in enumerate(sorted(data["localizations"], key=operator.itemgetter("unreviewed_strings"), reverse=True), 1):
+			rows.append((f"{item['unreviewed_strings']:n}", f"{item['locale']['name']!r} ({item['locale']['code']})"))
 			if i >= 5:
 				break
 
 		output_markdown_table(rows, ("Unreviewed", "Locale"))
 
 		print(
-			f"\n**Total Unreviewed Strings**: {data['unreviewedStrings']:n} / {data['totalStrings']:n} ({data['unreviewedStrings'] / data['totalStrings']:.4%})\n"
+			f"\n**Total Unreviewed Strings**: {data['unreviewed_strings']:n} / {data['total_strings']:n} ({data['unreviewed_strings'] / data['total_strings']:.4%})\n"
 		)
 
 		print("#### Top Missing Locales by Population (number of native speakers)\n")

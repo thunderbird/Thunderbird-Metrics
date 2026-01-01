@@ -23,7 +23,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
 from json.decoder import JSONDecodeError
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import matplotlib.pyplot as plt
 import requests
@@ -134,6 +134,7 @@ def output_duration(delta):
 	m, s = divmod(delta.seconds, 60)
 	h, m = divmod(m, 60)
 	y, d = divmod(delta.days, 365)
+	ms, _us = divmod(delta.microseconds, 1000)
 	text = []
 	if y:
 		text.append(f"{y:n} year{'s' if y != 1 else ''}")
@@ -145,6 +146,8 @@ def output_duration(delta):
 		text.append(f"{m:n} minute{'s' if m != 1 else ''}")
 	if y or d or h or m or s:
 		text.append(f"{s:n} second{'s' if s != 1 else ''}")
+	if not (y or d or h or m):
+		text.append(f"{ms:n} millisecond{'s' if ms != 1 else ''}")
 
 	return ", ".join(text)
 
@@ -209,16 +212,20 @@ def github_api(url, params=None):
 def get_repositories(org):
 	repos = []
 	page = 1
+	after = None
 
 	while True:
 		logging.info("\tPage %s (%s)", page, len(repos))
 
-		r, data = github_api(f"{GITHUB_API_URL}orgs/{org}/repos", {"per_page": LIMIT, "page": page})
+		r, data = github_api(f"{GITHUB_API_URL}orgs/{org}/repos", {"per_page": LIMIT, "page": page, "after": after})
 
 		repos.extend(data)
 
 		if "next" not in r.links:
 			break
+
+		params = parse_qs(urlparse(r.links["next"]["url"]).query, strict_parsing=True)
+		after = params["after"][0] if "after" in params else None
 
 		page += 1
 
@@ -243,6 +250,7 @@ def get_languages(org, repo):
 def get_all_issues(org, repo, start_date=None):
 	issues = []
 	page = 1
+	after = None
 
 	while True:
 		logging.info("\tPage %s (%s)", page, len(issues))
@@ -254,6 +262,7 @@ def get_all_issues(org, repo, start_date=None):
 				# "since": f"{start_date:%Y-%m-%d}" if start_date is not None else start_date,
 				"per_page": LIMIT,
 				"page": page,
+				"after": after,
 			},
 		)
 
@@ -261,6 +270,9 @@ def get_all_issues(org, repo, start_date=None):
 
 		if "next" not in r.links:
 			break
+
+		params = parse_qs(urlparse(r.links["next"]["url"]).query, strict_parsing=True)
+		after = params["after"][0] if "after" in params else None
 
 		page += 1
 
@@ -270,16 +282,20 @@ def get_all_issues(org, repo, start_date=None):
 def get_all_discussions(org, repo, start_date=None):
 	discussions = []
 	page = 1
+	after = None
 
 	while True:
 		logging.info("\tPage %s (%s)", page, len(discussions))
 
-		r, data = github_api(f"{GITHUB_API_URL}repos/{org}/{repo}/discussions", {"per_page": LIMIT, "page": page})
+		r, data = github_api(f"{GITHUB_API_URL}repos/{org}/{repo}/discussions", {"per_page": LIMIT, "page": page, "after": after})
 
 		discussions.extend(data)
 
 		if "next" not in r.links:
 			break
+
+		params = parse_qs(urlparse(r.links["next"]["url"]).query, strict_parsing=True)
+		after = params["after"][0] if "after" in params else None
 
 		page += 1
 
@@ -287,51 +303,86 @@ def get_all_discussions(org, repo, start_date=None):
 
 
 LANGUAGE_EMOJI = {
-	"AIDL": "🤖",
-	"Batchfile": "📄",
-	"BitBake": "🍞",
-	"C": "🌊",
-	"C#": "🎼",
+	"AIDL": "📇",
+	"AMPL": "📐",
+	"ActionScript": "⚡",
+	"Ada": "🎩",
+	"AngelScript": "😇",
+	"Assembly": "⚙️",
+	"Awk": "🦅",
+	"Batchfile": "🪟",
+	"C": "©️",
+	"C#": "#️⃣",
 	"C++": "➕",
-	"CMake": "🧱",
+	"CMake": "🛠️",
 	"CSS": "🎨",
-	"DIGITAL Command Language": "💾",
+	"Clarion": "📯",
+	"Common Lisp": "🧠",
+	"DIGITAL Command Language": "⌨️",
 	"Dockerfile": "🐳",
-	"Fluent": "🔤",
-	"HCL": "🏗️",
+	"EJS": "🧵",
+	"Elixir": "⚗️",
+	"Emacs Lisp": "🐃",
+	"Fluent": "💬",
+	"FreeMarker": "🏷️",
+	"GDB": "🐞",
+	"Groovy": "🎸",
+	"HCL": "🧱",
 	"HTML": "🌐",
-	"IDL": "💬",
+	"Hack": "🕵️",
+	"IDL": "🆔",
 	"Java": "☕",
-	"JavaScript": "📜",
-	"Jinja": "🏮",
+	"JavaScript": "🟨",
+	"Jinja": "🧞",
 	"Jupyter Notebook": "📓",
-	"Kotlin": "🔷",
+	"Kotlin": "🟣",
 	"Less": "➖",
-	"Linker Script": "⛓️",
+	"Lex": "🔤",
+	"Linker Script": "🔗",
 	"Lua": "🌙",
-	"M4": "🧩",
-	"MDX": "📝",
-	"Makefile": "🛠️",
+	"M4": "4️⃣",
+	"MDX": "📚",
+	"Makefile": "🔨",
 	"Mako": "🦈",
+	"Mermaid": "🧜",
+	"Mustache": "🥸",
+	"NASL": "🛡️",
 	"NSIS": "📦",
-	"Objective-C++": "🎯",
+	"NewLisp": "🆕",
+	"Objective-C": "🍎",
+	"Objective-C++": "🍏",
 	"PHP": "🐘",
-	"PLpgSQL": "🔵",
+	"PLpgSQL": "🛢️",
+	"POV-Ray SDL": "🔦",
+	"Pascal": "➗",
 	"Pawn": "♟️",
+	"Perl": "🐪",
+	"PostScript": "📜",
 	"Python": "🐍",
 	"R": "📊",
-	"RenderScript": "🎞️",
+	"Raku": "🦋",
+	"RenderScript": "🖼️",
+	"Rez": "🗂️",
+	"Rich Text Format": "📝",
 	"Roff": "📰",
 	"Ruby": "💎",
 	"Rust": "🦀",
-	"SCSS": "💅",
+	"SCSS": "💗",
+	"Scilab": "🧪",
 	"Shell": "🐚",
-	"Smarty": "🧠",
+	"Smarty": "🧙",
 	"Swift": "🐦",
-	"Tcl": "💬",
+	"Tcl": "🧶",
 	"TypeScript": "🟦",
-	"Vue": "🖼️",
-	"Yacc": "⚖️",
+	"VBScript": "🧾",
+	"VCL": "🧴",
+	"Visual Basic 6.0": "🔷",
+	"Vue": "🟩",
+	"WebAssembly": "🕸️",
+	"XS": "❎",
+	"XSLT": "🔄",
+	"Yacc": "🧩",
+	"sed": "✂️",
 }
 
 
