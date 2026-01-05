@@ -3,11 +3,11 @@ Mozilla Thunderbird Community Metrics
 
 This project was originally developed at [github.com/tdulcet/Thunderbird-Metrics](https://github.com/tdulcet/Thunderbird-Metrics). Copyright © 2025 Teal Dulcet
 
-The Thunderbird Community Metrics are designed to complement @mkmelin’s existing “Thunderbird Metrics” e-mail, while providing data from additional sources. There are a total of six e-mails, covering 13 sources:
+The Thunderbird Community Metrics are designed to complement @mkmelin’s existing “Thunderbird Metrics” e-mail, while providing data from additional sources. There are a total of six e-mails, covering 14 sources:
 
 1. Bugzilla/BMO, Phabricator, Crash Stats and Thunderbird Code Coverage
 2. GitHub
-3. Thunderbird Stats and Mozilla Connect
+3. Thunderbird Stats, Mozilla Connect and Thunderbird Pro Ideas
 4. Thunderbird Add-ons/ATN
 5. Support (Mozilla Support/SUMO, Mozilla Discourse and Topicbox)
 6. Localization (Pontoon and Weblate)

@@ -21,6 +21,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
 from itertools import starmap
+from json.decoder import JSONDecodeError
 
 import matplotlib.pyplot as plt
 import requests
@@ -135,10 +136,16 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 	print(f"\n![{title}]({fig_to_data_uri(fig)})\n")
 
 
+def output_isoformat(date):
+	output = date.isoformat()
+	return output[:-6] + "Z" if output.endswith("+00:00") else output
+
+
 def output_duration(delta):
 	m, s = divmod(delta.seconds, 60)
 	h, m = divmod(m, 60)
 	y, d = divmod(delta.days, 365)
+	ms, _us = divmod(delta.microseconds, 1000)
 	text = []
 	if y:
 		text.append(f"{y:n} year{'s' if y != 1 else ''}")
@@ -150,6 +157,8 @@ def output_duration(delta):
 		text.append(f"{m:n} minute{'s' if m != 1 else ''}")
 	if y or d or h or m or s:
 		text.append(f"{s:n} second{'s' if s != 1 else ''}")
+	if not (y or d or h or m):
+		text.append(f"{ms:n} millisecond{'s' if ms != 1 else ''}")
 
 	return ", ".join(text)
 
@@ -175,8 +184,8 @@ def get_all_ideas(label):
 		except HTTPError as e:
 			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
-		except RequestException as e:
-			logging.critical("%s", e)
+		except (RequestException, JSONDecodeError) as e:
+			logging.critical("%s: %s", type(e).__name__, e)
 			sys.exit(1)
 
 		ideas.extend(data["data"]["items"])
@@ -394,7 +403,7 @@ def main():
 			writer.writerow((
 				f"{item['kudos']['sum']['weight']}{f' + {kudos}' if kudos else ''}",
 				item["kudos"]["sum"]["weight"] + kudos,
-				datetime.fromisoformat(item["post_time"]).astimezone(timezone.utc).isoformat(),
+				output_isoformat(datetime.fromisoformat(item["post_time"]).astimezone(timezone.utc)),
 				item["board"]["id"],
 				", ".join(labels[item["id"]]),
 				item["status"]["name"] if "status" in item else "",

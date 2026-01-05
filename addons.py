@@ -7,6 +7,7 @@
 import atexit
 import base64
 import csv
+import http.client
 import io
 import json
 import locale
@@ -21,6 +22,7 @@ import time
 from collections import Counter, namedtuple
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
+from json.decoder import JSONDecodeError
 from urllib.parse import urlparse, urlunparse
 
 import matplotlib.pyplot as plt
@@ -35,7 +37,8 @@ session.headers["User-Agent"] = (
 	f"Thunderbird Metrics ({session.headers['User-Agent']} {platform.python_implementation()}/{platform.python_version()})"
 )
 session.mount(
-	"https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(5, status_forcelist=(502,), backoff_factor=1))
+	"https://",
+	requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(5, status_forcelist=(http.client.BAD_GATEWAY,), backoff_factor=1)),
 )
 atexit.register(session.close)
 
@@ -176,8 +179,8 @@ def get_tb_versions():
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data
@@ -191,8 +194,8 @@ def get_languages():
 	except HTTPError as e:
 		logging.error("%s\n%r", e, r.text)
 		return {}
-	except RequestException as e:
-		logging.error("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.error("%s: %s", type(e).__name__, e)
 		return {}
 
 	return data
@@ -216,8 +219,8 @@ def get_addons(atype):
 		except HTTPError as e:
 			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
-		except RequestException as e:
-			logging.critical("%s", e)
+		except (RequestException, JSONDecodeError) as e:
+			logging.critical("%s: %s", type(e).__name__, e)
 			sys.exit(1)
 
 		addons.extend(data["results"])
@@ -247,11 +250,11 @@ def get_addon_versions(addon_id):
 			data = r.json()
 		except HTTPError as e:
 			logging.error("%s\n%r", e, r.text)
-			if r.status_code in {401, 404}:
+			if r.status_code in {http.client.UNAUTHORIZED, http.client.NOT_FOUND}:
 				return versions
 			sys.exit(1)
-		except RequestException as e:
-			logging.critical("%s", e)
+		except (RequestException, JSONDecodeError) as e:
+			logging.critical("%s: %s", type(e).__name__, e)
 			sys.exit(1)
 
 		versions.extend(data["results"])
@@ -379,9 +382,10 @@ def main():
 		addons_count = len(addons)
 		duplicates_count = {key: addons_count - len({addon[key] for addon in addons}) for key in ("id", "slug", "guid")}
 
-		print(
-			f"#### Total {name}s: {addons_count:n}\t{'(' + ', '.join(f'duplicate {key}s: {value:n}' for key, value in duplicates_count.items() if value) + ')' if any(duplicates_count.values()) else ''}\n"
-		)
+		print(f"#### Total {name}s: {addons_count:n}\n")
+
+		if any(duplicates_count.values()):
+			print(f"({', '.join(f'duplicate {key}s: {value:n}' for key, value in duplicates_count.items() if value)})\n")
 
 		# disabled_count = sum(1 for addon in addons if addon["is_disabled"])
 		experimental_count = sum(1 for addon in addons if addon["is_experimental"])

@@ -23,7 +23,7 @@ mkdir -p "$date1"/{bugzilla,github,mozilla_connect,addons,support,localization}
 
 # {
 # 	echo -e '---\n'
-# 	for script in bugzilla.py github.py mozilla_connect.py stats.py crash_stats.py code_coverage.py addons.py sumo.py discourse.py pontoon.py weblate.py topicbox.py; do
+# 	for script in bugzilla.py github.py mozilla_connect.py pro_ideas.py stats.py crash_stats.py code_coverage.py addons.py sumo.py discourse.py pontoon.py weblate.py topicbox.py; do
 # 		echo "$script" >&2
 # 		python3 -X dev "$script"
 # 		echo -e '\n---\n'
@@ -42,7 +42,7 @@ Welcome to the Thunderbird Community Metrics, which are designed to complement M
 
 1. Bugzilla/BMO, Phabricator, Crash Stats and Thunderbird Code Coverage
 2. GitHub
-3. Thunderbird Stats and Mozilla Connect
+3. Thunderbird Stats, Mozilla Connect and Thunderbird Pro Ideas
 4. Thunderbird Add-ons/ATN
 5. Support (Mozilla Support/SUMO, Mozilla Discourse and Topicbox)
 6. Localization (Pontoon and Weblate)
@@ -90,10 +90,10 @@ Feedback is welcome. The scripts used to generate these e-mails are  open source
 -The Community Team
 EOF
 
-echo -e "\nThunderbird Stats and Mozilla Connect\n"
+echo -e "\nThunderbird Stats, Mozilla Connect and Thunderbird Pro Ideas\n"
 
 cat <<EOF >"$date1/mozilla_connect/email.md"
-Subject: Thunderbird Community Metrics $date2 ($date1): Stats and Mozilla Connect
+Subject: Thunderbird Community Metrics $date2 ($date1): Stats, Mozilla Connect and Pro Ideas
 
 Hello Thunderbird Community,
 
@@ -106,6 +106,8 @@ This is e-mail 3 of 6 of the Thunderbird Community Metrics. It includes inline g
 $(time python3 -OO stats.py)
 
 $(time python3 -OO mozilla_connect.py)
+
+$(time python3 -OO pro_ideas.py)
 
 ---
 

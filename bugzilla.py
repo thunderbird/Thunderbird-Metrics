@@ -7,6 +7,7 @@
 import atexit
 import base64
 import csv
+import http.client
 import io
 import json
 import locale
@@ -22,6 +23,7 @@ import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
+from json.decoder import JSONDecodeError
 
 import matplotlib.pyplot as plt
 import requests
@@ -34,7 +36,12 @@ session = requests.Session()
 session.headers["User-Agent"] = (
 	f"Thunderbird Metrics ({session.headers['User-Agent']} {platform.python_implementation()}/{platform.python_version()})"
 )
-session.mount("https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(5, backoff_factor=1, allowed_methods=None)))
+session.mount(
+	"https://",
+	requests.adapters.HTTPAdapter(
+		max_retries=urllib3.util.Retry(5, status_forcelist=(http.client.BAD_GATEWAY,), backoff_factor=1, allowed_methods=None)
+	),
+)
 atexit.register(session.close)
 
 BUGZILLA_BASE_URL = "https://bugzilla.mozilla.org/"
@@ -144,6 +151,7 @@ def output_duration(delta):
 	m, s = divmod(delta.seconds, 60)
 	h, m = divmod(m, 60)
 	y, d = divmod(delta.days, 365)
+	ms, _us = divmod(delta.microseconds, 1000)
 	text = []
 	if y:
 		text.append(f"{y:n} year{'s' if y != 1 else ''}")
@@ -155,6 +163,8 @@ def output_duration(delta):
 		text.append(f"{m:n} minute{'s' if m != 1 else ''}")
 	if y or d or h or m or s:
 		text.append(f"{s:n} second{'s' if s != 1 else ''}")
+	if not (y or d or h or m):
+		text.append(f"{ms:n} millisecond{'s' if ms != 1 else ''}")
 
 	return ", ".join(text)
 
@@ -191,8 +201,8 @@ def get_all_bugs(product, component, start_date=None):
 		except HTTPError as e:
 			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
-		except RequestException as e:
-			logging.critical("%s", e)
+		except (RequestException, JSONDecodeError) as e:
+			logging.critical("%s: %s", type(e).__name__, e)
 			sys.exit(1)
 
 		dupes = [bug["id"] for bug in data["bugs"] if bug["id"] in seen or seen.add(bug["id"])]
@@ -217,8 +227,8 @@ def phabricator_api_bmo(method, data):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return result["result"]
@@ -241,8 +251,8 @@ def phabricator_api(method, data):
 		except HTTPError as e:
 			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
-		except RequestException as e:
-			logging.critical("%s", e)
+		except (RequestException, JSONDecodeError) as e:
+			logging.critical("%s: %s", type(e).__name__, e)
 			sys.exit(1)
 
 		results.extend(result["result"]["data"])
@@ -274,8 +284,8 @@ def hg_get_revisions(repo):
 		except HTTPError as e:
 			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
-		except RequestException as e:
-			logging.critical("%s", e)
+		except (RequestException, JSONDecodeError) as e:
+			logging.critical("%s: %s", type(e).__name__, e)
 			sys.exit(1)
 
 		revisions.extend(data["changesets"][1:] if node else data["changesets"])

@@ -17,6 +17,7 @@ import sys
 from collections import Counter
 from datetime import datetime, timezone
 from itertools import starmap
+from json.decoder import JSONDecodeError
 
 import matplotlib.pyplot as plt
 import requests
@@ -106,8 +107,8 @@ def get_languages():
 	except HTTPError as e:
 		logging.error("%s\n%r", e, r.text)
 		return {}
-	except RequestException as e:
-		logging.error("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.error("%s: %s", type(e).__name__, e)
 		return {}
 
 	return data
@@ -121,8 +122,8 @@ def get_stats(file):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data
@@ -136,8 +137,8 @@ def get_data(file):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data
@@ -159,6 +160,7 @@ OPERATING_SYSTEMS = {
 	"Darwin": "macOS",
 	"Linux": "Linux",
 	# Firefox: https://github.com/mozilla/ensemble-transposer/issues/208
+	"Darwin-25.x": "macOS Tahoe",
 	"Darwin-24.x": "macOS Sequoia",
 	"Darwin-23.x": "macOS Sonoma",
 	"Darwin-22.x": "macOS Ventura",

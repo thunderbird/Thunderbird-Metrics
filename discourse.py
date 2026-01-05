@@ -21,6 +21,7 @@ import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
+from json.decoder import JSONDecodeError
 
 import matplotlib.pyplot as plt
 import requests
@@ -107,8 +108,8 @@ def get_categories():
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data["category_list"]["categories"]
@@ -122,8 +123,8 @@ def get_category(aid):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data["category"]
@@ -144,8 +145,8 @@ def get_topics(slug, aid):
 		except HTTPError as e:
 			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
-		except RequestException as e:
-			logging.critical("%s", e)
+		except (RequestException, JSONDecodeError) as e:
+			logging.critical("%s: %s", type(e).__name__, e)
 			sys.exit(1)
 
 		users.update((user["id"], user) for user in data["users"])

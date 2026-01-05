@@ -16,6 +16,7 @@ import platform
 import sys
 from datetime import datetime, timezone
 from itertools import starmap
+from json.decoder import JSONDecodeError
 
 import matplotlib.pyplot as plt
 import requests
@@ -94,8 +95,8 @@ def get_languages():
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data["results"]
@@ -109,8 +110,8 @@ def get_project_stats(project):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data
@@ -124,8 +125,8 @@ def get_project_langs(project):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data
@@ -144,8 +145,8 @@ def get_project_credits(project, start, end):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data

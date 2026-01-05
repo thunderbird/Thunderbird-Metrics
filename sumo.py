@@ -7,6 +7,7 @@
 import atexit
 import base64
 import csv
+import http.client
 import io
 import json
 import locale
@@ -20,6 +21,7 @@ import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
+from json.decoder import JSONDecodeError
 from zoneinfo import ZoneInfo
 
 import matplotlib.pyplot as plt
@@ -34,7 +36,10 @@ session.headers["User-Agent"] = (
 	f"Thunderbird Metrics ({session.headers['User-Agent']} {platform.python_implementation()}/{platform.python_version()})"
 )
 session.mount(
-	"https://", requests.adapters.HTTPAdapter(max_retries=urllib3.util.Retry(3, status_forcelist=(500,), backoff_factor=1))
+	"https://",
+	requests.adapters.HTTPAdapter(
+		max_retries=urllib3.util.Retry(5, status_forcelist=(http.client.INTERNAL_SERVER_ERROR,), backoff_factor=1)
+	),
 )
 atexit.register(session.close)
 
@@ -108,8 +113,8 @@ def get_languages():
 	except HTTPError as e:
 		logging.error("%s\n%r", e, r.text)
 		return {}
-	except RequestException as e:
-		logging.error("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.error("%s: %s", type(e).__name__, e)
 		return {}
 
 	return data
@@ -124,7 +129,8 @@ def get_questions(product, start_date):
 
 		try:
 			r = session.get(
-				f"{SUMO_API_URL}question",
+				f"{SUMO_API_URL}question/",
+				headers={"User-Agent": f"{session.headers['User-Agent']} {int(time.time())}"},
 				params={"product": product, "created__gt": f"{start_date:%Y-%m-%d}", "ordering": "+created", "page": page},
 				timeout=30,
 			)
@@ -133,8 +139,8 @@ def get_questions(product, start_date):
 		except HTTPError as e:
 			logging.critical("%s\n%r", e, r.text)
 			sys.exit(1)
-		except RequestException as e:
-			logging.critical("%s", e)
+		except (RequestException, JSONDecodeError) as e:
+			logging.critical("%s: %s", type(e).__name__, e)
 			sys.exit(1)
 
 		questions.extend(data["results"])
@@ -144,7 +150,7 @@ def get_questions(product, start_date):
 
 		page += 1
 
-		time.sleep(0.25)
+		time.sleep(0.5)
 
 	return questions
 

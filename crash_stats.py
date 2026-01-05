@@ -17,6 +17,7 @@ import sys
 from collections import Counter, namedtuple
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
+from json.decoder import JSONDecodeError
 
 import matplotlib.pyplot as plt
 import requests
@@ -154,8 +155,8 @@ def get_histogram(start_date, end_date):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data["facets"]["histogram_date"]
@@ -178,8 +179,8 @@ def get_aggregation(start_date, end_date):
 	except HTTPError as e:
 		logging.critical("%s\n%r", e, r.text)
 		sys.exit(1)
-	except RequestException as e:
-		logging.critical("%s", e)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e)
 		sys.exit(1)
 
 	return data["facets"]["signature"]
