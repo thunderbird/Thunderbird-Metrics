@@ -39,6 +39,22 @@ CRASH_STATS_API_URL = f"{CRASH_STATS_BASE_URL}api/"
 PRODUCTS = ("Thunderbird", "Firefox")
 PRODUCT = "Thunderbird"
 
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 3
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
+
+
 # r"([]!#()*+.<>[\\_`{|}-])"
 MARKDOWN_ESCAPE = re.compile(r"([]!#*<>[\\_`|])")
 
@@ -193,30 +209,44 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	date = datetime.now(timezone.utc)
-	year = date.year
-	month = date.month - 6
+	now = datetime.now(timezone.utc)
+	year = now.year
+	month = now.month - 6
 	if month < 1:
 		year -= 1
 		month += 12
 	start_date = datetime(year, month, 1, tzinfo=timezone.utc)
 
-	year = date.year
-	month = date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
-	end_date = datetime(year, month, 1, tzinfo=timezone.utc)
+	if PERIOD == 1:
+		weekday = now.weekday()
+		end_date = datetime(now.year, now.month, now.day, tzinfo=timezone.utc) - timedelta(weekday, weeks=1)
+	elif PERIOD == 2:
+		year = now.year
+		month = now.month - 1
+		if month < 1:
+			year -= 1
+			month += 12
+		end_date = datetime(year, month, 1, tzinfo=timezone.utc)
+	elif PERIOD == 3:
+		year = now.year
+		month = now.month - (now.month - 1) % 3 - 3
+		if month < 1:
+			year -= 1
+			month += 12
+		end_date = datetime(year, month, 1, tzinfo=timezone.utc)
+	elif PERIOD == 4:
+		year = now.year - 1
+		end_date = datetime(year, 1, 1, tzinfo=timezone.utc)
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "bugzilla")
+	adir = os.path.join(f"{now:%G-%V}", "bugzilla")
 
 	os.makedirs(adir, exist_ok=True)
 
-	data = get_histogram(start_date, date)
+	data = get_histogram(start_date, now)
 
 	print("## 💥 Crash Stats (crash-stats.mozilla.org)\n")
 
-	print(f"Data as of: {date:%Y-%m-%d %H:%M:%S%z}\n")
+	print(f"Data as of: {now:%Y-%m-%d %H:%M:%S%z}\n")
 
 	labels = []
 	stats = {product: [] for product in (PRODUCT,)}
@@ -244,9 +274,9 @@ def main():
 
 	print(f"\nPlease see {CRASH_STATS_BASE_URL}search/?product=Thunderbird for more information.")
 
-	items = get_aggregation(end_date, date)
+	items = get_aggregation(end_date, now)
 
-	print(f"\n### Top Thunderbird Crash Signatures ({end_date:%B %Y})\n")
+	print(f"\n### Top Thunderbird Crash Signatures ({output_period(end_date)})\n")
 
 	rows = []
 	for i, item in enumerate(items, 1):

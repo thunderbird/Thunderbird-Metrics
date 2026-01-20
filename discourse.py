@@ -43,6 +43,37 @@ SLUG = "thunderbird"
 
 LIMIT = 100
 
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 3
+
+PERIODS = {1: "Week", 2: "Month", 3: "Quarter", 4: "Year"}
+
+
+def get_period(date):
+	if PERIOD == 1:
+		cal = date.isocalendar()
+		return cal.year, cal.week
+	if PERIOD == 2:
+		return date.year, date.month
+	if PERIOD == 3:
+		return date.year, (date.month - 1) // 3
+	if PERIOD == 4:
+		return date.year
+	return None
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
+
+
 # r"([]!#()*+.<>[\\_`{|}-])"
 MARKDOWN_ESCAPE = re.compile(r"([]!#*<>[\\_`|])")
 
@@ -77,7 +108,8 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 	ax.margins(0.01)
 
-	widths = [timedelta(26)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
+	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
+	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
 
 	for name, values in stacks.items():
@@ -167,30 +199,75 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	end_date = datetime.now(timezone.utc)
-	year = end_date.year
-	month = end_date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
-	start_date = max(datetime(year - 10, 1, 1, tzinfo=timezone.utc), datetime(2017, 10, 1, tzinfo=timezone.utc))
+	now = datetime.now(timezone.utc)
+	if PERIOD == 1:
+		year = now.year
+		month = now.month
+		day = now.day - now.weekday() - 7
+		if day < 1:
+			month -= 1
+			if month < 1:
+				year -= 1
+				# month += 12
+	elif PERIOD == 2:
+		year = now.year
+		month = now.month - 1
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 3:
+		year = now.year
+		month = now.month - 3
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 4:
+		year = now.year - 1
+
+	start_date = max(
+		datetime(year - (10 if PERIOD <= 2 else 20), 1, 1, tzinfo=timezone.utc), datetime(2017, 10, 1, tzinfo=timezone.utc)
+	)
+	if PERIOD == 1:
+		weekday = start_date.weekday()
+		if weekday:
+			start_date -= timedelta(6 - weekday)
+	elif PERIOD == 3:
+		month = (start_date.month - 1) % 3
+		if month:
+			start_date = start_date.replace(month=start_date.month - month)
+	elif PERIOD == 4:
+		if start_date.month - 1:
+			start_date = start_date.replace(month=1)
 
 	dates = []
 	date = start_date
-	while date < end_date:
+	while date < now:
 		dates.append(date)
 
-		year = date.year
-		month = date.month + 1
-		if month > 12:
-			year += 1
-			month -= 12
-		date = date.replace(year=year, month=month)
+		if PERIOD == 1:
+			date += timedelta(weeks=1)
+		elif PERIOD == 2:
+			year = date.year
+			month = date.month + 1
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 3:
+			year = date.year
+			month = date.month + 3
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 4:
+			year = date.year + 1
+			date = date.replace(year=year)
 
 	dates.pop()
 	end_date = dates[-1]
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "support")
+	adir = os.path.join(f"{now:%G-%V}", "support")
 
 	os.makedirs(adir, exist_ok=True)
 
@@ -209,7 +286,7 @@ def main():
 		logging.critical("Could not find %r", SLUG)
 		sys.exit(1)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "Discourse_topics.json")
+	file = os.path.join(f"{now:%G-%V}", "Discourse_topics.json")
 
 	if not os.path.exists(file):
 		start = time.perf_counter()
@@ -259,7 +336,7 @@ def main():
 
 	for topic in topics:
 		date = fromisoformat(topic["created_at"])
-		created.setdefault((date.year, date.month), []).append(topic)
+		created.setdefault(get_period(date), []).append(topic)
 
 	labels = list(reversed(dates))
 	created_status = {key: [] for key in ("Topic", "Answered", "Solved")}
@@ -274,7 +351,7 @@ def main():
 
 		rows = []
 		for date in reversed(dates):
-			acreated = created.get((date.year, date.month), [])
+			acreated = created.get(get_period(date), [])
 			category_counts = Counter(topic["category_id"] for topic in acreated)
 			topics_count = len(acreated)
 			answered_count = sum(1 for topic in acreated if topic["posts_count"] > 1)  # len(topic["posters"]) > 1
@@ -282,7 +359,7 @@ def main():
 			# posts_count = sum(topic["posts_count"] for topic in acreated)
 
 			writer.writerow({
-				"Date": f"{date:%B %Y}",
+				"Date": output_period(date),
 				"Topics": topics_count,
 				"Answered": answered_count,
 				"Solved": solved_count,
@@ -290,7 +367,7 @@ def main():
 			})
 
 			rows.append((
-				f"{date:%B %Y}",
+				output_period(date),
 				f"{topics_count:n}",
 				f"{answered_count:n} ({answered_count / topics_count:.4%})" if topics_count else "",
 				f"{solved_count:n} ({solved_count / topics_count:.4%})" if topics_count else "",
@@ -304,22 +381,28 @@ def main():
 			for category in categories.values():
 				created_category[category["name"]].append(category_counts[category["id"]])
 
-	print('\n### Total Topics Created by Month\n\n(The lifecycle goes "Topic" ⟶ "Answered" ⟶ "Solved".)\n')
+	print(f'\n### Total Topics Created by {PERIODS[PERIOD]}\n\n(The lifecycle goes "Topic" ⟶ "Answered" ⟶ "Solved".)\n')
 	output_stacked_bar_graph(
-		adir, labels, created_status, "Mozilla Discourse Topics Created by Status and Month", "Date", "Total Created", "Status"
+		adir,
+		labels,
+		created_status,
+		f"Mozilla Discourse Topics Created by Status and {PERIODS[PERIOD]}",
+		"Date",
+		"Total Created",
+		"Status",
 	)
 	output_stacked_bar_graph(
 		adir,
 		labels,
 		created_category,
-		"Mozilla Discourse Topics Created by Category and Month",
+		f"Mozilla Discourse Topics Created by Category and {PERIODS[PERIOD]}",
 		"Date",
 		"Total Created",
 		"Category",
 	)
-	output_markdown_table(rows, ("Month", "Topics", "Answered", "Solved", "Categories"), True)
+	output_markdown_table(rows, (PERIODS[PERIOD], "Topics", "Answered", "Solved", "Categories"), True)
 
-	items = created.get((end_date.year, end_date.month))
+	items = created.get(get_period(end_date))
 
 	tag_counts = Counter(tag for item in topics for tag in item["tags"])
 
@@ -330,7 +413,7 @@ def main():
 	if items:
 		answer_counts = Counter(user["user_id"] for item in items for user in item["posters"])
 
-		print(f"\n### Top Topic Posters ({end_date:%B %Y})\n")
+		print(f"\n### Top Topic Posters ({output_period(end_date)})\n")
 
 		output_markdown_table(
 			[

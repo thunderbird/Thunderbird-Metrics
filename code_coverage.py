@@ -14,7 +14,7 @@ import os
 import platform
 import statistics
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from itertools import starmap
 from json.decoder import JSONDecodeError
 
@@ -34,6 +34,36 @@ atexit.register(session.close)
 
 CODE_COVERAGE_BASE_URL = "https://coverage.thunderbird.net/"
 CODE_COVERAGE_API_URL = f"{CODE_COVERAGE_BASE_URL}v2/"
+
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 2
+
+PERIODS = {1: "Week", 2: "Month", 3: "Quarter", 4: "Year"}
+
+
+def get_period(date):
+	if PERIOD == 1:
+		cal = date.isocalendar()
+		return cal.year, cal.week
+	if PERIOD == 2:
+		return date.year, date.month
+	if PERIOD == 3:
+		return date.year, (date.month - 1) // 3
+	if PERIOD == 4:
+		return date.year
+	return None
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
 
 
 def output_markdown_table(rows, header):
@@ -120,25 +150,39 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	date = datetime.now(timezone.utc)
-	# start_date = datetime(date.year - 5, 1, 1, tzinfo=timezone.utc)
-	start_date = datetime(date.year - 1, date.month, 1, tzinfo=timezone.utc)
-	dates = []
-	current_start = start_date
-	while current_start < date:
-		dates.append(current_start)
+	now = datetime.now(timezone.utc)
+	# start_date = datetime(now.year - (5 if PERIOD <= 2 else 10), 1, 1, tzinfo=timezone.utc)
+	start_date = datetime(now.year - 1, now.month, 1, tzinfo=timezone.utc)
 
-		year = current_start.year
-		month = current_start.month + 1
-		if month > 12:
-			year += 1
-			month -= 12
-		current_start = current_start.replace(year=year, month=month)
+	dates = []
+	date = start_date
+	while date < now:
+		dates.append(date)
+
+		if PERIOD == 1:
+			date += timedelta(weeks=1)
+		elif PERIOD == 2:
+			year = date.year
+			month = date.month + 1
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 3:
+			year = date.year
+			month = date.month + 3
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 4:
+			year = date.year + 1
+			date = date.replace(year=year)
 
 	# dates.pop()
-	end_date = dates[-2]
+	# end_date = dates[-1]
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "bugzilla")
+	adir = os.path.join(f"{now:%G-%V}", "bugzilla")
 
 	os.makedirs(adir, exist_ok=True)
 
@@ -156,13 +200,13 @@ def main():
 		for item in history:
 			if item["coverage"]:
 				adate = datetime.fromtimestamp(item["date"])
-				counts.setdefault((adate.year, adate.month), []).append(item["coverage"])
+				counts.setdefault(get_period(adate), []).append(item["coverage"])
 
 		logging.info("\tGot %s data points", sum(map(len, counts.values())))
 
 	print("## 📈 Thunderbird Code Coverage (coverage.thunderbird.net)\n")
 
-	print(f"Data as of: {date:%Y-%m-%d %H:%M:%S%z}\n")
+	print(f"Data as of: {now:%Y-%m-%d %H:%M:%S%z}\n")
 
 	labels = list(reversed(dates))
 	coverages = {path or "Root": [] for path in paths}
@@ -174,19 +218,19 @@ def main():
 
 		rows = []
 		for date in reversed(dates):
-			adate = (date.year, date.month)
+			adate = get_period(date)
 			acoverages = {
 				path: statistics.median_high(counts[adate]) if adate in counts else None for path, counts in histories.items()
 			}
 			coverage = acoverages[data["path"]]
 
 			writer.writerow({
-				"Date": f"{date:%B %Y}",
+				"Date": output_period(date),
 				**{path: acoverage if acoverage is not None else "" for path, acoverage in acoverages.items()},
 			})
 
 			rows.append((
-				f"{date:%B %Y}",
+				output_period(date),
 				f"{coverage:n}%" if coverage is not None else "-",
 				", ".join(
 					f"{paths[path]}: {f'{acoverage:n}%' if acoverage is not None else '-'}"
@@ -198,9 +242,9 @@ def main():
 			for path, acoverage in acoverages.items():
 				coverages[path or "Root"].append(acoverage if acoverage is not None else 0)
 
-	print("### Code Coverage by Month (past year)\n")
-	output_line_graph(adir, labels, coverages, "Thunderbird Code Coverage by Month", "Date", "Coverage %", "Path")
-	output_markdown_table(rows, ("Month", "Coverage %", "Path Coverage %"))
+	print(f"### Code Coverage by {PERIODS[PERIOD]} (past year)\n")
+	output_line_graph(adir, labels, coverages, f"Thunderbird Code Coverage by {PERIODS[PERIOD]}", "Date", "Coverage %", "Path")
+	output_markdown_table(rows, (PERIODS[PERIOD], "Coverage %", "Path Coverage %"))
 
 	print(f"\nPlease see {CODE_COVERAGE_BASE_URL} for more information.")
 

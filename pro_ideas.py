@@ -44,6 +44,36 @@ HEADERS = {"X-Organization": "ideas.tb.pro"}
 
 LIMIT = 100
 
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 3
+
+PERIODS = {1: "Week", 2: "Month", 3: "Quarter", 4: "Year"}
+
+
+def get_period(date):
+	if PERIOD == 1:
+		cal = date.isocalendar()
+		return cal.year, cal.week
+	if PERIOD == 2:
+		return date.year, date.month
+	if PERIOD == 3:
+		return date.year, (date.month - 1) // 3
+	if PERIOD == 4:
+		return date.year
+	return None
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
+
 
 # r"([]!#()*+.<>[\\_`{|}-])"
 MARKDOWN_ESCAPE = re.compile(r"([]!#*<>[\\_`|])")
@@ -79,7 +109,8 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 	ax.margins(0.01)
 
-	widths = [timedelta(26)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
+	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
+	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
 
 	for name, values in stacks.items():
@@ -161,34 +192,79 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	end_date = datetime.now(timezone.utc)
-	year = end_date.year
-	month = end_date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
-	start_date = max(datetime(year - 10, 1, 1, tzinfo=timezone.utc), datetime(2025, 11, 1, tzinfo=timezone.utc))
+	now = datetime.now(timezone.utc)
+	if PERIOD == 1:
+		year = now.year
+		month = now.month
+		day = now.day - now.weekday() - 7
+		if day < 1:
+			month -= 1
+			if month < 1:
+				year -= 1
+				# month += 12
+	elif PERIOD == 2:
+		year = now.year
+		month = now.month - 1
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 3:
+		year = now.year
+		month = now.month - 3
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 4:
+		year = now.year - 1
+
+	start_date = max(
+		datetime(year - (10 if PERIOD <= 2 else 20), 1, 1, tzinfo=timezone.utc), datetime(2025, 10, 1, tzinfo=timezone.utc)
+	)
+	if PERIOD == 1:
+		weekday = start_date.weekday()
+		if weekday:
+			start_date -= timedelta(6 - weekday)
+	elif PERIOD == 3:
+		month = (start_date.month - 1) % 3
+		if month:
+			start_date = start_date.replace(month=start_date.month - month)
+	elif PERIOD == 4:
+		if start_date.month - 1:
+			start_date = start_date.replace(month=1)
 
 	dates = []
 	date = start_date
-	while date < end_date:
+	while date < now:
 		dates.append(date)
 
-		year = date.year
-		month = date.month + 1
-		if month > 12:
-			year += 1
-			month -= 12
-		date = date.replace(year=year, month=month)
+		if PERIOD == 1:
+			date += timedelta(weeks=1)
+		elif PERIOD == 2:
+			year = date.year
+			month = date.month + 1
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 3:
+			year = date.year
+			month = date.month + 3
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 4:
+			year = date.year + 1
+			date = date.replace(year=year)
 
 	dates.pop()
-	end_date = dates[-1]
+	# end_date = dates[-1]
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "mozilla_connect")
+	adir = os.path.join(f"{now:%G-%V}", "mozilla_connect")
 
 	os.makedirs(adir, exist_ok=True)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "Pro Ideas.json")
+	file = os.path.join(f"{now:%G-%V}", "Pro Ideas.json")
 
 	if not os.path.exists(file):
 		start = time.perf_counter()
@@ -214,12 +290,12 @@ def main():
 
 	print(f"Data as of: {date:%Y-%m-%d %H:%M:%S%z}\n")
 
-	created = {(adate.year, adate.month): [] for adate in dates}
+	created = {get_period(adate): [] for adate in dates}
 	deltas = []
 
 	for item in ideas:
 		adate = fromisoformat(item["created_at"])
-		created.setdefault((adate.year, adate.month), []).append(item)
+		created.setdefault(get_period(adate), []).append(item)
 
 		if item["status"] != "closed":
 			deltas.append(date - adate)
@@ -267,16 +343,16 @@ def main():
 
 		rows = []
 		for date in reversed(dates):
-			acreated = created[date.year, date.month]
+			acreated = created[get_period(date)]
 
 			created_count = len(acreated)
 			status_counts = Counter(item["custom_state_id"] for item in acreated)
 			astatus_counts = {astates[key]["slug"]: count for key, count in status_counts.items()}
 
-			writer.writerow({"Date": f"{date:%B %Y}", "Total Created": created_count, **astatus_counts})
+			writer.writerow({"Date": output_period(date), "Total Created": created_count, **astatus_counts})
 
 			rows.append((
-				f"{date:%B %Y}",
+				output_period(date),
 				f"{created_count:n}",
 				", ".join(f"{astates[key]['name']}: {count:n}" for key, count in status_counts.most_common()),
 			))
@@ -285,11 +361,11 @@ def main():
 				key = state["slug"]
 				created_status[key].append(astatus_counts.get(key, 0))
 
-	print("\n### Total Ideas Created by Month\n")
+	print(f"\n### Total Ideas Created by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(
-		adir, alabels, created_status, "Thunderbird Pro Ideas Created by Month", "Date", "Total Created", "Status"
+		adir, alabels, created_status, f"Thunderbird Pro Ideas Created by {PERIODS[PERIOD]}", "Date", "Total Created", "Status"
 	)
-	output_markdown_table(rows, ("Month", "Created", "Idea States"), True)
+	output_markdown_table(rows, (PERIODS[PERIOD], "Created", "Idea States"), True)
 
 	print("\n### Top Ideas by Total Votes\n")
 

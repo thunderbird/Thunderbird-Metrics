@@ -8,6 +8,9 @@ set -e
 
 export LC_ALL=en_US.UTF-8
 
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD=3
+
 if [[ $# -ne 0 ]]; then
 	echo "Usage: $0" >&2
 	exit 1
@@ -15,9 +18,29 @@ fi
 
 REPOSITORY='https://github.com/thunderbird/Thunderbird-Metrics'
 
-date=$(date -d "$(date +%Y-%m-15) -1 month" +%s)
-printf -v date1 '%(%Y-%m)T' "$date"
-printf -v date2 '%(%B %Y)T' "$date"
+date=${EPOCHSECONDS:-$(date +%s)}
+printf -v date1 '%(%G-%V)T' "$date"
+
+if [[ $PERIOD -eq 1 ]]; then
+	date="-1 week"
+elif [[ $PERIOD -eq 2 ]]; then
+	date="$(date +%Y-%m-15) -1 month"
+elif [[ $PERIOD -eq 3 ]]; then
+	date="$(date +%Y-%m-15) -3 months"
+elif [[ $PERIOD -eq 4 ]]; then
+	date="-1 year"
+fi
+date=$(date -d "$date" +%s)
+
+if [[ $PERIOD -eq 1 ]]; then
+	printf -v date2 'Week %(%V, %G)T' "$date"
+elif [[ $PERIOD -eq 2 ]]; then
+	printf -v date2 '%(%B %Y)T' "$date"
+elif [[ $PERIOD -eq 3 ]]; then
+	printf -v date2 'Quarter %s, %(%Y)T' $(( ($(printf '%(%m)T' "$date") - 1) / 3 + 1 )) "$date"
+elif [[ $PERIOD -eq 4 ]]; then
+	printf -v date2 '%(%Y)T' "$date"
+fi
 
 mkdir -p "$date1"/{bugzilla,github,mozilla_connect,addons,support,localization}
 
@@ -34,7 +57,7 @@ mkdir -p "$date1"/{bugzilla,github,mozilla_connect,addons,support,localization}
 echo -e "Bugzilla/BMO, Phabricator, Crash Stats and Thunderbird Code Coverage\n"
 
 cat <<EOF >"$date1/bugzilla/email.md"
-Subject: Thunderbird Community Metrics $date2 ($date1): Bugzilla, Phabricator, Crash Stats and Code Coverage
+Subject: Thunderbird Community Metrics $date2: Bugzilla, Phabricator, Crash Stats and Code Coverage
 
 Hello Thunderbird Community,
 
@@ -51,7 +74,7 @@ This is e-mail 1 of 6 of the Thunderbird Community Metrics. It includes inline g
 
 ---
 
-# 📊 Thunderbird Community Metrics $date2 ($date1)
+# 📊 Thunderbird Community Metrics $date2
 
 $(time python3 -OO bugzilla.py)
 
@@ -63,15 +86,15 @@ $(time python3 -OO code_coverage.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
-   
+Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
+
 -The Community Team
 EOF
 
 echo -e "\nGitHub\n"
 
 cat <<EOF >"$date1/github/email.md"
-Subject: Thunderbird Community Metrics $date2 ($date1): GitHub
+Subject: Thunderbird Community Metrics $date2: GitHub
 
 Hello Thunderbird Community,
 
@@ -79,21 +102,21 @@ This is e-mail 2 of 6 of the Thunderbird Community Metrics. It includes inline g
 
 ---
 
-# 📊 Thunderbird Community Metrics $date2 ($date1)
+# 📊 Thunderbird Community Metrics $date2
 
 $(time python3 -OO github.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
-   
+Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
+
 -The Community Team
 EOF
 
 echo -e "\nThunderbird Stats, Mozilla Connect and Thunderbird Pro Ideas\n"
 
 cat <<EOF >"$date1/mozilla_connect/email.md"
-Subject: Thunderbird Community Metrics $date2 ($date1): Stats, Mozilla Connect and Pro Ideas
+Subject: Thunderbird Community Metrics $date2: Stats, Mozilla Connect and Pro Ideas
 
 Hello Thunderbird Community,
 
@@ -101,7 +124,7 @@ This is e-mail 3 of 6 of the Thunderbird Community Metrics. It includes inline g
 
 ---
 
-# 📊 Thunderbird Community Metrics $date2 ($date1)
+# 📊 Thunderbird Community Metrics $date2
 
 $(time python3 -OO stats.py)
 
@@ -111,15 +134,15 @@ $(time python3 -OO pro_ideas.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
-   
+Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
+
 -The Community Team
 EOF
 
 echo -e "\nThunderbird Add-ons/ATN\n"
 
 cat <<EOF >"$date1/addons/email.md"
-Subject: Thunderbird Community Metrics $date2 ($date1): Add-ons (extensions and themes)
+Subject: Thunderbird Community Metrics $date2: Add-ons (extensions and themes)
 
 Hello Thunderbird Community,
 
@@ -127,21 +150,21 @@ This is e-mail 4 of 6 of the Thunderbird Community Metrics. It includes inline g
 
 ---
 
-# 📊 Thunderbird Community Metrics $date2 ($date1)
+# 📊 Thunderbird Community Metrics $date2
 
 $(time python3 -OO addons.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
-   
+Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
+
 -The Community Team
 EOF
 
 echo -e "\nSupport (Mozilla Support Forum/SUMO, Mozilla Discourse and Topicbox)\n"
 
 cat <<EOF >"$date1/support/email.md"
-Subject: Thunderbird Community Metrics $date2 ($date1): Support (Mozilla Support Forum, Mozilla Discourse and Topicbox)
+Subject: Thunderbird Community Metrics $date2: Support (Mozilla Support Forum, Mozilla Discourse and Topicbox)
 
 Hello Thunderbird Community,
 
@@ -149,7 +172,7 @@ This is e-mail 5 of 6 of the Thunderbird Community Metrics. It includes inline g
 
 ---
 
-# 📊 Thunderbird Community Metrics $date2 ($date1)
+# 📊 Thunderbird Community Metrics $date2
 
 $(time python3 -OO sumo.py)
 
@@ -161,15 +184,15 @@ $(time python3 -OO topicbox.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
-   
+Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
+
 -The Community Team
 EOF
 
 echo -e "\nLocalization (Pontoon and Weblate)\n"
 
 cat <<EOF >"$date1/localization/email.md"
-Subject: Thunderbird Community Metrics $date2 ($date1): Localization (Pontoon and Weblate)
+Subject: Thunderbird Community Metrics $date2: Localization (Pontoon and Weblate)
 
 Hello Thunderbird Community,
 
@@ -177,7 +200,7 @@ This is e-mail 6 of 6 of the Thunderbird Community Metrics. It includes inline g
 
 ---
 
-# 📊 Thunderbird Community Metrics $date2 ($date1)
+# 📊 Thunderbird Community Metrics $date2
 
 $(time python3 -OO pontoon.py)
 
@@ -186,7 +209,7 @@ $(time python3 -OO weblate.py)
 
 ---
 
-Feedback is welcome. The scripts used to generate these e-mails are  open source: $REPOSITORY, so  contributions are welcome as well!
-   
+Feedback is welcome. The scripts used to generate these e-mails are open source: $REPOSITORY, so contributions are welcome as well!
+
 -The Community Team
 EOF

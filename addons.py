@@ -54,6 +54,37 @@ LIMIT = 50
 
 VERBOSE = False
 
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 3
+
+PERIODS = {1: "Week", 2: "Month", 3: "Quarter", 4: "Year"}
+
+
+def get_period(date):
+	if PERIOD == 1:
+		cal = date.isocalendar()
+		return cal.year, cal.week
+	if PERIOD == 2:
+		return date.year, date.month
+	if PERIOD == 3:
+		return date.year, (date.month - 1) // 3
+	if PERIOD == 4:
+		return date.year
+	return None
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
+
+
 # r"([]!#()*+.<>[\\_`{|}-])"
 MARKDOWN_ESCAPE = re.compile(r"([]!#*<>[\\_`|])")
 
@@ -106,10 +137,11 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 	fig, ax = plt.subplots(figsize=(12, 8))
 
 	ax.margins(0.01)
-	if any(sum(v) > 200 for v in zip(*stacks.values())):
-		ax.set_ylim(top=200)
+	if sum(sum(v) > 100 for v in zip(*stacks.values())) == 1:
+		ax.set_ylim(top=100)
 
-	widths = [timedelta(26)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
+	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
+	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
 
 	for name, values in stacks.items():
@@ -274,30 +306,66 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	end_date = datetime.now(timezone.utc)
-	year = end_date.year
-	month = end_date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
-	start_date = datetime(year - 10, 1, 1, tzinfo=timezone.utc)
+	now = datetime.now(timezone.utc)
+	if PERIOD == 1:
+		year = now.year
+		month = now.month
+		day = now.day - now.weekday() - 7
+		if day < 1:
+			month -= 1
+			if month < 1:
+				year -= 1
+				# month += 12
+	elif PERIOD == 2:
+		year = now.year
+		month = now.month - 1
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 3:
+		year = now.year
+		month = now.month - 3
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 4:
+		year = now.year - 1
+
+	start_date = datetime(year - (10 if PERIOD <= 2 else 20), 1, 1, tzinfo=timezone.utc)
+	if PERIOD == 1:
+		weekday = start_date.weekday()
+		if weekday:
+			start_date -= timedelta(6 - weekday)
 
 	dates = []
 	date = start_date
-	while date < end_date:
+	while date < now:
 		dates.append(date)
 
-		year = date.year
-		month = date.month + 1
-		if month > 12:
-			year += 1
-			month -= 12
-		date = date.replace(year=year, month=month)
+		if PERIOD == 1:
+			date += timedelta(weeks=1)
+		elif PERIOD == 2:
+			year = date.year
+			month = date.month + 1
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 3:
+			year = date.year
+			month = date.month + 3
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 4:
+			year = date.year + 1
+			date = date.replace(year=year)
 
 	dates.pop()
 	end_date = dates[-1]
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "addons")
+	adir = os.path.join(f"{now:%G-%V}", "addons")
 
 	os.makedirs(adir, exist_ok=True)
 
@@ -321,7 +389,7 @@ def main():
 		+ [("115.18.0", "Old ESR")]
 	]
 
-	file = os.path.join(f"{end_date:%Y-%m}", "languages.json")
+	file = os.path.join(f"{now:%G-%V}", "languages.json")
 
 	if not os.path.exists(file):
 		languages = get_languages()
@@ -335,7 +403,7 @@ def main():
 	for atype, name in (("extension", "Extension"), ("statictheme", "Theme")):
 		print(f"### {name}s\n")
 
-		file = os.path.join(f"{end_date:%Y-%m}", f"ATN_{atype}s.json")
+		file = os.path.join(f"{now:%G-%V}", f"ATN_{atype}s.json")
 
 		if not os.path.exists(file):
 			start = time.perf_counter()
@@ -351,7 +419,7 @@ def main():
 			with open(file, encoding="utf-8") as f:
 				addons = json.load(f)
 
-		file = os.path.join(f"{end_date:%Y-%m}", f"ATN_{atype}_versions.json")
+		file = os.path.join(f"{now:%G-%V}", f"ATN_{atype}_versions.json")
 
 		if not os.path.exists(file):
 			addon_versions = {}
@@ -466,14 +534,14 @@ def main():
 
 		for addon in addons:
 			date = fromisoformat(addon["created"])
-			created.setdefault((date.year, date.month), []).append(addon)
+			created.setdefault(get_period(date), []).append(addon)
 
 			date = fromisoformat(addon["last_updated"])
-			updated.setdefault((date.year, date.month), []).append(addon)
+			updated.setdefault(get_period(date), []).append(addon)
 
 			for version in addon_versions[f"{addon['id']}-{addon['slug']}"] or (addon["current_version"],):
 				date = fromisoformat(max(file["created"] for file in version["files"]))
-				updates.setdefault((date.year, date.month), []).append(addon)
+				updates.setdefault(get_period(date), []).append(addon)
 
 		labels = list(reversed(dates))
 		created_status = {key: [] for key in ("Created",)}
@@ -491,7 +559,7 @@ def main():
 			rows1 = []
 			rows2 = []
 			for date in reversed(dates):
-				adate = (date.year, date.month)
+				adate = get_period(date)
 
 				acreated = created.get(adate, [])
 				acategory_counts = Counter(
@@ -501,33 +569,37 @@ def main():
 
 				updates_count = len(updates.get(adate, []))
 
-				writer1.writerow({"Date": f"{date:%B %Y}", "Total Created": created_count, **acategory_counts})
-				writer2.writerow((f"{date:%B %Y}", updates_count))
+				writer1.writerow({"Date": output_period(date), "Total Created": created_count, **acategory_counts})
+				writer2.writerow((output_period(date), updates_count))
 
 				rows1.append((
-					f"{date:%B %Y}",
+					output_period(date),
 					f"{created_count:n}",
 					", ".join(f"{key}: {count:n}" for key, count in acategory_counts.most_common()),
 				))
-				rows2.append((f"{date:%B %Y}", f"{updates_count:n}"))
+				rows2.append((output_period(date), f"{updates_count:n}"))
 
 				created_status["Created"].append(created_count)
 				updates_status["Updates"].append(updates_count)
 
-		print(f"\n#### Total {name}s Created by Month\n")
-		output_stacked_bar_graph(adir, labels, created_status, f"ATN {name}s Created by Month", "Date", "Total Created", None)
-		output_markdown_table(rows1, ("Month", "Created", "Categories"), True)
+		print(f"\n#### Total {name}s Created by {PERIODS[PERIOD]}\n")
+		output_stacked_bar_graph(
+			adir, labels, created_status, f"ATN {name}s Created by {PERIODS[PERIOD]}", "Date", "Total Created", None
+		)
+		output_markdown_table(rows1, (PERIODS[PERIOD], "Created", "Categories"), True)
 
-		print(f"\n#### Total {name} Updates by Month\n")
-		output_stacked_bar_graph(adir, labels, updates_status, f"ATN {name} Updates by Month", "Date", "Total Updates", None)
-		output_markdown_table(rows2, ("Month", "Updates"), True)
+		print(f"\n#### Total {name} Updates by {PERIODS[PERIOD]}\n")
+		output_stacked_bar_graph(
+			adir, labels, updates_status, f"ATN {name} Updates by {PERIODS[PERIOD]}", "Date", "Total Updates", None
+		)
+		output_markdown_table(rows2, (PERIODS[PERIOD], "Updates"), True)
 
 		version = parse_version(tb_versions["LATEST_THUNDERBIRD_VERSION"])
 
-		print(f"\n#### {name}s Created ({end_date:%B %Y})\n")
+		print(f"\n#### {name}s Created ({output_period(end_date)})\n")
 
 		rows = []
-		for i, item in enumerate(created.get((end_date.year, end_date.month), []), 1):
+		for i, item in enumerate(created.get(get_period(end_date), []), 1):
 			rows.append((
 				f"{i:n}",
 				f"{fromisoformat(item['created']):%Y-%m-%d}",
@@ -547,11 +619,11 @@ def main():
 		if atype == "extension":
 			print("\nAlso see: https://thunderbird.github.io/webext-reports/recent-addition.html")
 
-		print(f"\n#### {name}s Updated ({end_date:%B %Y})\n")
+		print(f"\n#### {name}s Updated ({output_period(end_date)})\n")
 
 		rows = []
 		for i, item in enumerate(
-			sorted(updated.get((end_date.year, end_date.month), []), key=operator.itemgetter("last_updated"), reverse=True), 1
+			sorted(updated.get(get_period(end_date), []), key=operator.itemgetter("last_updated"), reverse=True), 1
 		):
 			rows.append((
 				f"{i:n}",

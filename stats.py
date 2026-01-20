@@ -182,15 +182,9 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	date = datetime.now(timezone.utc)
-	year = date.year
-	month = date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
-	end_date = datetime(year, month, 1, tzinfo=timezone.utc)
+	now = datetime.now(timezone.utc)
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "mozilla_connect")
+	adir = os.path.join(f"{now:%G-%V}", "mozilla_connect")
 
 	os.makedirs(adir, exist_ok=True)
 
@@ -216,7 +210,7 @@ def main():
 	ff_addons = get_data("desktop/usage-behavior/Worldwide/pct_addon/index.json")
 	aff_addons = sorted((value["x"], value["y"]) for value in ff_addons["data"]["populations"]["default"])
 
-	file = os.path.join(f"{end_date:%Y-%m}", "languages.json")
+	file = os.path.join(f"{now:%G-%V}", "languages.json")
 
 	if not os.path.exists(file):
 		languages = get_languages()
@@ -229,7 +223,7 @@ def main():
 
 	print("## 📈 Thunderbird Stats (stats.thunderbird.net)\n")
 
-	print(f"Data as of: {date:%Y-%m-%d %H:%M:%S%z}\n")
+	print(f"Data as of: {now:%Y-%m-%d %H:%M:%S%z}\n")
 
 	tb_date, tb_users_item = next(reversed(atb_users.items()))
 	ff_date, ff_users_item = max((value["x"], value["y"]) for value in ff_users["data"]["populations"]["default"])

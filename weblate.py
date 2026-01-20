@@ -14,7 +14,7 @@ import operator
 import os
 import platform
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from itertools import starmap
 from json.decoder import JSONDecodeError
 
@@ -41,6 +41,21 @@ HEADERS = {"Authorization": f"Token {WEBLATE_TOKEN}"} if WEBLATE_TOKEN is not No
 PROJECTS = ("tb-android",)
 
 LIMIT = 1000
+
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 3
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
 
 
 def output_markdown_table(rows, header):
@@ -159,22 +174,40 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	date = datetime.now(timezone.utc)
-	year = date.year
-	month = date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
-	start_date = datetime(year, month, 1, tzinfo=timezone.utc)
-	end_date = datetime(date.year, date.month, 1, tzinfo=timezone.utc)
+	now = datetime.now(timezone.utc)
+	if PERIOD == 1:
+		date = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+		weekday = now.weekday()
+		start_date = date - timedelta(weekday, weeks=1)
+		end_date = date - timedelta(weekday)
+	elif PERIOD == 2:
+		year = now.year
+		month = now.month - 1
+		if month < 1:
+			year -= 1
+			month += 12
+		start_date = datetime(year, month, 1, tzinfo=timezone.utc)
+		end_date = datetime(now.year, now.month, 1, tzinfo=timezone.utc)
+	elif PERIOD == 3:
+		year = now.year
+		month = now.month - (now.month - 1) % 3 - 3
+		if month < 1:
+			year -= 1
+			month += 12
+		start_date = datetime(year, month, 1, tzinfo=timezone.utc)
+		end_date = datetime(now.year, now.month - (now.month - 1) % 3, 1, tzinfo=timezone.utc)
+	elif PERIOD == 4:
+		year = now.year - 1
+		start_date = datetime(year, 1, 1, tzinfo=timezone.utc)
+		end_date = datetime(now.year, 1, 1, tzinfo=timezone.utc)
 
-	adir = os.path.join(f"{start_date:%Y-%m}", "localization")
+	adir = os.path.join(f"{now:%G-%V}", "localization")
 
 	os.makedirs(adir, exist_ok=True)
 
 	print("## 🌐 Weblate Localization\n")
 
-	print(f"Data as of: {date:%Y-%m-%d %H:%M:%S%z}\n")
+	print(f"Data as of: {now:%Y-%m-%d %H:%M:%S%z}\n")
 
 	languages = get_languages()
 	langs = {alocale["code"].split("@", 1)[0].split("_", 1)[0] for alocale in languages}
@@ -304,7 +337,7 @@ def main():
 
 		output_markdown_table(rows, ("#", "Population", "Language"))
 
-		print(f"\n#### Top Contributors ({start_date:%B %Y})\n")
+		print(f"\n#### Top Contributors ({output_period(start_date)})\n")
 
 		if WEBLATE_TOKEN is not None:
 			acredits = get_project_credits(slug, start_date, end_date)
