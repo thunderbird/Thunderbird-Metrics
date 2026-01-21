@@ -120,6 +120,7 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 	ax.margins(0.01)
 
+	# Set the width for each bar in the bar graph to 90% of the time difference between them
 	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
 	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
@@ -486,11 +487,11 @@ def main():
 	dates.pop()
 	end_date = dates[-1]
 
-	adir = os.path.join(f"{now:%G-%V}", "github")
+	adir = os.path.join(f"{now:w%V-%G}", "github")
 
 	os.makedirs(adir, exist_ok=True)
 
-	file = os.path.join(f"{now:%G-%V}", "GitHub_repos.json")
+	file = os.path.join(f"{now:w%V-%G}", "GitHub_repos.json")
 
 	if not os.path.exists(file):
 		repos = []
@@ -513,7 +514,7 @@ def main():
 		with open(file, encoding="utf-8") as f:
 			repos = json.load(f)
 
-	file = os.path.join(f"{now:%G-%V}", "GitHub_issues.json")
+	file = os.path.join(f"{now:w%V-%G}", "GitHub_issues.json")
 
 	if not os.path.exists(file):
 		issues = []
@@ -542,7 +543,7 @@ def main():
 
 	date = datetime.fromtimestamp(os.path.getmtime(file), timezone.utc)
 
-	file = os.path.join(f"{now:%G-%V}", "GitHub_languages.json")
+	file = os.path.join(f"{now:w%V-%G}", "GitHub_languages.json")
 
 	if not os.path.exists(file):
 		languages = {}
@@ -564,7 +565,7 @@ def main():
 		with open(file, encoding="utf-8") as f:
 			languages = json.load(f)
 
-	file = os.path.join(f"{now:%G-%V}", "GitHub_users.json")
+	file = os.path.join(f"{now:w%V-%G}", "GitHub_users.json")
 
 	if os.path.exists(file):
 		with open(file, encoding="utf-8") as f:

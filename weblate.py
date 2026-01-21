@@ -201,7 +201,7 @@ def main():
 		start_date = datetime(year, 1, 1, tzinfo=timezone.utc)
 		end_date = datetime(now.year, 1, 1, tzinfo=timezone.utc)
 
-	adir = os.path.join(f"{now:%G-%V}", "localization")
+	adir = os.path.join(f"{now:w%V-%G}", "localization")
 
 	os.makedirs(adir, exist_ok=True)
 

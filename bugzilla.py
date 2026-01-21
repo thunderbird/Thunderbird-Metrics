@@ -138,6 +138,7 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 	ax.margins(0.01)
 
+	# Set the width for each bar in the bar graph to 90% of the time difference between them
 	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
 	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
@@ -427,11 +428,11 @@ def main():
 	dates.pop()
 	end_date = dates[-1]
 
-	adir = os.path.join(f"{now:%G-%V}", "bugzilla")
+	adir = os.path.join(f"{now:w%V-%G}", "bugzilla")
 
 	os.makedirs(adir, exist_ok=True)
 
-	file = os.path.join(f"{now:%G-%V}", "BMO_bugs.json")
+	file = os.path.join(f"{now:w%V-%G}", "BMO_bugs.json")
 
 	if not os.path.exists(file):
 		bugs = []
@@ -468,7 +469,7 @@ def main():
 		for user in (*bug["cc_detail"], bug["creator_detail"], bug["assigned_to_detail"])
 	}
 
-	file = os.path.join(f"{now:%G-%V}", f"Phabricator_revisions_{REPOSITORY}.json")
+	file = os.path.join(f"{now:w%V-%G}", f"Phabricator_revisions_{REPOSITORY}.json")
 
 	if not os.path.exists(file):
 		logging.info("Downloading Phabricator revisions: %s", REPOSITORY)
@@ -496,7 +497,7 @@ def main():
 
 	revision_ids = {revision["id"]: revision for revision in revisions}
 
-	file = os.path.join(f"{now:%G-%V}", f"HG_commits_{REPOSITORY}.json")
+	file = os.path.join(f"{now:w%V-%G}", f"HG_commits_{REPOSITORY}.json")
 
 	if not os.path.exists(file):
 		logging.info("Downloading Mozilla HG commits: %s", REPOSITORY)
@@ -543,7 +544,7 @@ def main():
 		", ".join(map(str, sorted(missing))),
 	)
 
-	file = os.path.join(f"{now:%G-%V}", "Phabricator_users.json")
+	file = os.path.join(f"{now:w%V-%G}", "Phabricator_users.json")
 
 	if os.path.exists(file):
 		with open(file, encoding="utf-8") as f:

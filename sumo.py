@@ -113,6 +113,7 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 	ax.margins(0.01)
 
+	# Set the width for each bar in the bar graph to 90% of the time difference between them
 	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
 	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
@@ -253,11 +254,11 @@ def main():
 	dates.pop()
 	end_date = dates[-1]
 
-	adir = os.path.join(f"{now:%G-%V}", "support")
+	adir = os.path.join(f"{now:w%V-%G}", "support")
 
 	os.makedirs(adir, exist_ok=True)
 
-	file = os.path.join(f"{now:%G-%V}", "languages.json")
+	file = os.path.join(f"{now:w%V-%G}", "languages.json")
 
 	if not os.path.exists(file):
 		languages = get_languages()
@@ -268,7 +269,7 @@ def main():
 		with open(file, encoding="utf-8") as f:
 			languages = json.load(f)
 
-	file = os.path.join(f"{now:%G-%V}", "SUMO_questions.json")
+	file = os.path.join(f"{now:w%V-%G}", "SUMO_questions.json")
 
 	if not os.path.exists(file):
 		questions = []

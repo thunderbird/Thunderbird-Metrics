@@ -184,7 +184,7 @@ def main():
 
 	now = datetime.now(timezone.utc)
 
-	adir = os.path.join(f"{now:%G-%V}", "mozilla_connect")
+	adir = os.path.join(f"{now:w%V-%G}", "mozilla_connect")
 
 	os.makedirs(adir, exist_ok=True)
 
@@ -210,7 +210,7 @@ def main():
 	ff_addons = get_data("desktop/usage-behavior/Worldwide/pct_addon/index.json")
 	aff_addons = sorted((value["x"], value["y"]) for value in ff_addons["data"]["populations"]["default"])
 
-	file = os.path.join(f"{now:%G-%V}", "languages.json")
+	file = os.path.join(f"{now:w%V-%G}", "languages.json")
 
 	if not os.path.exists(file):
 		languages = get_languages()

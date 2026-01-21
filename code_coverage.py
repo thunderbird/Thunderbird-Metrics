@@ -182,7 +182,7 @@ def main():
 	# dates.pop()
 	# end_date = dates[-1]
 
-	adir = os.path.join(f"{now:%G-%V}", "bugzilla")
+	adir = os.path.join(f"{now:w%V-%G}", "bugzilla")
 
 	os.makedirs(adir, exist_ok=True)
 

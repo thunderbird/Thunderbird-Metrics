@@ -19,7 +19,7 @@ fi
 REPOSITORY='https://github.com/thunderbird/Thunderbird-Metrics'
 
 date=${EPOCHSECONDS:-$(date +%s)}
-printf -v date1 '%(%G-%V)T' "$date"
+printf -v date1 '%(w%V-%G)T' "$date"
 
 if [[ $PERIOD -eq 1 ]]; then
 	date="-1 week"

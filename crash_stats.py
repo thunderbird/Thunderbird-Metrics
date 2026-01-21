@@ -238,7 +238,7 @@ def main():
 		year = now.year - 1
 		end_date = datetime(year, 1, 1, tzinfo=timezone.utc)
 
-	adir = os.path.join(f"{now:%G-%V}", "bugzilla")
+	adir = os.path.join(f"{now:w%V-%G}", "bugzilla")
 
 	os.makedirs(adir, exist_ok=True)
 

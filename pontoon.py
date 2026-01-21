@@ -160,7 +160,7 @@ def main():
 
 	now = datetime.now(timezone.utc)
 
-	adir = os.path.join(f"{now:%G-%V}", "localization")
+	adir = os.path.join(f"{now:w%V-%G}", "localization")
 
 	os.makedirs(adir, exist_ok=True)
 
