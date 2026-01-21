@@ -55,6 +55,37 @@ LIMIT = 100
 
 VERBOSE = False
 
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 3
+
+PERIODS = {1: "Week", 2: "Month", 3: "Quarter", 4: "Year"}
+
+
+def get_period(date):
+	if PERIOD == 1:
+		cal = date.isocalendar()
+		return cal.year, cal.week
+	if PERIOD == 2:
+		return date.year, date.month
+	if PERIOD == 3:
+		return date.year, (date.month - 1) // 3
+	if PERIOD == 4:
+		return date.year
+	return None
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
+
+
 # r"([]!#()*+.<>[\\_`{|}-])"
 MARKDOWN_ESCAPE = re.compile(r"([]!#*<>[\\_`|])")
 
@@ -89,7 +120,9 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 	ax.margins(0.01)
 
-	widths = [timedelta(26)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
+	# Set the width for each bar in the bar graph to 90% of the time difference between them
+	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
+	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
 
 	for name, values in stacks.items():
@@ -393,34 +426,72 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	end_date = datetime.now(timezone.utc)
-	year = end_date.year
-	month = end_date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
-	start_date = datetime(year - 10, 1, 1, tzinfo=timezone.utc)
+	now = datetime.now(timezone.utc)
+	if PERIOD == 1:
+		year = now.year
+		month = now.month
+		day = now.day - now.weekday() - 7
+		if day < 1:
+			month -= 1
+			if month < 1:
+				year -= 1
+				# month += 12
+	elif PERIOD == 2:
+		year = now.year
+		month = now.month - 1
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 3:
+		year = now.year
+		month = now.month - 3
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 4:
+		year = now.year - 1
+
+	start_date = max(
+		datetime(year - (10 if PERIOD <= 2 else 20), 1, 1, tzinfo=timezone.utc), datetime(2011, 1, 1, tzinfo=timezone.utc)
+	)
+	if PERIOD == 1:
+		weekday = start_date.weekday()
+		if weekday:
+			start_date -= timedelta(6 - weekday)
 
 	dates = []
 	date = start_date
-	while date < end_date:
+	while date < now:
 		dates.append(date)
 
-		year = date.year
-		month = date.month + 1
-		if month > 12:
-			year += 1
-			month -= 12
-		date = date.replace(year=year, month=month)
+		if PERIOD == 1:
+			date += timedelta(weeks=1)
+		elif PERIOD == 2:
+			year = date.year
+			month = date.month + 1
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 3:
+			year = date.year
+			month = date.month + 3
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 4:
+			year = date.year + 1
+			date = date.replace(year=year)
 
 	dates.pop()
 	end_date = dates[-1]
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "github")
+	adir = os.path.join(f"{now:w%V-%G}", "github")
 
 	os.makedirs(adir, exist_ok=True)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "GitHub_repos.json")
+	file = os.path.join(f"{now:w%V-%G}", "GitHub_repos.json")
 
 	if not os.path.exists(file):
 		repos = []
@@ -443,7 +514,7 @@ def main():
 		with open(file, encoding="utf-8") as f:
 			repos = json.load(f)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "GitHub_issues.json")
+	file = os.path.join(f"{now:w%V-%G}", "GitHub_issues.json")
 
 	if not os.path.exists(file):
 		issues = []
@@ -472,7 +543,7 @@ def main():
 
 	date = datetime.fromtimestamp(os.path.getmtime(file), timezone.utc)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "GitHub_languages.json")
+	file = os.path.join(f"{now:w%V-%G}", "GitHub_languages.json")
 
 	if not os.path.exists(file):
 		languages = {}
@@ -494,7 +565,7 @@ def main():
 		with open(file, encoding="utf-8") as f:
 			languages = json.load(f)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "GitHub_users.json")
+	file = os.path.join(f"{now:w%V-%G}", "GitHub_users.json")
 
 	if os.path.exists(file):
 		with open(file, encoding="utf-8") as f:
@@ -506,11 +577,11 @@ def main():
 
 	print(f"Data as of: {date:%Y-%m-%d %H:%M:%S%z}\n")
 
-	issues_created = {(adate.year, adate.month): [] for adate in dates}
-	pr_created = {(adate.year, adate.month): [] for adate in dates}
+	issues_created = {get_period(adate): [] for adate in dates}
+	pr_created = {get_period(adate): [] for adate in dates}
 
-	issues_closed = {(adate.year, adate.month): [] for adate in dates}
-	pr_closed = {(adate.year, adate.month): [] for adate in dates}
+	issues_closed = {get_period(adate): [] for adate in dates}
+	pr_closed = {get_period(adate): [] for adate in dates}
 
 	issues_open = []
 	pr_open = []
@@ -518,8 +589,8 @@ def main():
 	issues_open_deltas = []
 	pr_open_deltas = []
 
-	issues_closed_deltas = {(adate.year, adate.month): [] for adate in dates}
-	# pr_closed_deltas = {(adate.year, adate.month): [] for adate in dates}
+	issues_closed_deltas = {get_period(adate): [] for adate in dates}
+	# pr_closed_deltas = {get_period(adate): [] for adate in dates}
 
 	aissues_closed = []
 	apr_closed = []
@@ -527,19 +598,19 @@ def main():
 	for issue in issues:
 		created_date = fromisoformat(issue["created_at"])
 		if "pull_request" in issue:
-			pr_created.setdefault((created_date.year, created_date.month), []).append(issue)
+			pr_created.setdefault(get_period(created_date), []).append(issue)
 		else:
-			issues_created.setdefault((created_date.year, created_date.month), []).append(issue)
+			issues_created.setdefault(get_period(created_date), []).append(issue)
 
 		if issue["closed_at"]:
 			closed_date = fromisoformat(issue["closed_at"])
 			if "pull_request" in issue:
-				pr_closed.setdefault((closed_date.year, closed_date.month), []).append(issue)
-				# pr_closed_deltas.setdefault((closed_date.year, closed_date.month), []).append(closed_date - created_date)
+				pr_closed.setdefault(get_period(closed_date), []).append(issue)
+				# pr_closed_deltas.setdefault(get_period(closed_date), []).append(closed_date - created_date)
 				apr_closed.append(issue)
 			else:
-				issues_closed.setdefault((closed_date.year, closed_date.month), []).append(issue)
-				issues_closed_deltas.setdefault((closed_date.year, closed_date.month), []).append(closed_date - created_date)
+				issues_closed.setdefault(get_period(closed_date), []).append(issue)
+				issues_closed_deltas.setdefault(get_period(closed_date), []).append(closed_date - created_date)
 				aissues_closed.append(issue)
 		elif "pull_request" in issue:
 			pr_open.append(issue)
@@ -668,7 +739,7 @@ def main():
 		rows2 = []
 		rows3 = []
 		for date in reversed(dates):
-			adate = (date.year, date.month)
+			adate = get_period(date)
 
 			created_issues_count = len(issues_created[adate])
 			# created_issue_counts = Counter(issue['type']['name'] if issue['type'] else 'unknown' for issue in issues_created[adate])
@@ -698,7 +769,7 @@ def main():
 			difference = created_count - closed_count
 
 			writer1.writerow({
-				"Date": f"{date:%B %Y}",
+				"Date": output_period(date),
 				"Issues Created": created_issues_count,
 				**{f"Issues {key}": value for key, value in created_issue_counts.items()},
 				"PRs Created": created_prs_count,
@@ -706,17 +777,17 @@ def main():
 				"Total Created": created_count,
 			})
 			writer2.writerow({
-				"Date": f"{date:%B %Y}",
+				"Date": output_period(date),
 				"Issues Closed": closed_issues_count,
 				"PRs Closed": closed_prs_count,
 				"Total Closed": closed_count,
 				**closed_issue_counts,
 				**closed_pr_counts,
 			})
-			writer3.writerow((f"{date:%B %Y}", created_count, closed_count, difference))
+			writer3.writerow((output_period(date), created_count, closed_count, difference))
 
 			rows1.append((
-				f"{date:%B %Y}",
+				output_period(date),
 				f"{created_issues_count:n}",
 				", ".join(f"{key}: {count:n}" for key, count in created_issue_counts.most_common()),
 				f"{created_prs_count:n}",
@@ -724,14 +795,14 @@ def main():
 				f"{created_count:n}",
 			))
 			rows2.append((
-				f"{date:%B %Y}",
+				output_period(date),
 				f"{closed_issues_count:n}",
 				", ".join(f"{key}: {count:n}" for key, count in closed_issue_counts.most_common()),
 				f"{closed_prs_count:n}",
 				", ".join(f"{key}: {count:n}" for key, count in closed_pr_counts.most_common()),
 				f"{closed_count:n}",
 			))
-			rows3.append((f"{date:%B %Y}", f"{created_count:n}", f"{closed_count:n}", f"{difference:n}"))
+			rows3.append((output_period(date), f"{created_count:n}", f"{closed_count:n}", f"{difference:n}"))
 
 			for key in keys:
 				created_state[f"Issues {key}"].append(created_issue_counts[key])
@@ -748,40 +819,56 @@ def main():
 
 			differences.append(difference)
 
-	print("\n### Total Created Issues and Pull Requests by Month\n")
+	print(f"\n### Total Created Issues and Pull Requests by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(
-		adir, labels, created_state, "GitHub Created Issues and Pull Requests by Month", "Date", "Total Created", "State"
+		adir,
+		labels,
+		created_state,
+		f"GitHub Created Issues and Pull Requests by {PERIODS[PERIOD]}",
+		"Date",
+		"Total Created",
+		"State",
 	)
 	output_markdown_table(
-		rows1, ("Month", "Created Issues", "Created Issue State", "Created PRs", "Created PR State", "Total Created"), True
+		rows1, (PERIODS[PERIOD], "Created Issues", "Created Issue State", "Created PRs", "Created PR State", "Total Created"), True
 	)
 
-	print("\n### Total Closed Issues and Pull Requests by Month\n")
+	print(f"\n### Total Closed Issues and Pull Requests by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(
-		adir, labels, closed_state, "GitHub Closed Issues and Pull Requests by Month", "Date", "Total Closed", "State"
+		adir, labels, closed_state, f"GitHub Closed Issues and Pull Requests by {PERIODS[PERIOD]}", "Date", "Total Closed", "State"
 	)
 	output_markdown_table(
-		rows2, ("Month", "Closed Issues", "Closed Issue State", "Closed PRs", "Closed PR State", "Total Closed"), True
+		rows2, (PERIODS[PERIOD], "Closed Issues", "Closed Issue State", "Closed PRs", "Closed PR State", "Total Closed"), True
 	)
 
-	print("\n### Total Created vs Total Closed Difference by Month\n\n(Positive numbers mean the backlog is increasing)\n")
+	print(
+		f"\n### Total Created vs Total Closed Difference by {PERIODS[PERIOD]}\n\n(Positive numbers mean the backlog is increasing)\n"
+	)
 	output_line_graph(
-		adir, labels, {"Difference": differences}, "GitHub Created vs Closed Difference by Month", "Date", "Difference", None
+		adir,
+		labels,
+		{"Difference": differences},
+		f"GitHub Created vs Closed Difference by {PERIODS[PERIOD]}",
+		"Date",
+		"Difference",
+		None,
 	)
-	output_markdown_table(rows3, ("Month", "Total Created", "Total Closed", "Difference"), True)
+	output_markdown_table(rows3, (PERIODS[PERIOD], "Total Created", "Total Closed", "Difference"), True)
 
-	print("\n### Closed Issues Total Duration by Month\n")
-	output_line_graph(adir, labels, deltas, "GitHub Closed Issues Total Duration by Month", "Date", "Duration (years)", None)
+	print(f"\n### Closed Issues Total Duration by {PERIODS[PERIOD]}\n")
+	output_line_graph(
+		adir, labels, deltas, f"GitHub Closed Issues Total Duration by {PERIODS[PERIOD]}", "Date", "Duration (years)", None
+	)
 
 	pr_user_counts = Counter(
 		item["user"]["login"] for item in apr_closed if item["pull_request"]["merged_at"] and item["user"]["type"] != "Bot"
 	)
 	apr_user_counts = Counter(
 		(item["user"]["id"], item["user"]["login"], item["user"]["html_url"])
-		for item in pr_closed[end_date.year, end_date.month]
+		for item in pr_closed[get_period(end_date)]
 		if item["pull_request"]["merged_at"] and item["user"]["type"] != "Bot"
 	)
-	print(f"\n### Merged Pull Requests by User, excluding Bots ({end_date:%B %Y})\n")
+	print(f"\n### Merged Pull Requests by User, excluding Bots ({output_period(end_date)})\n")
 
 	rows = []
 	changed = False
@@ -806,10 +893,10 @@ def main():
 
 	issue_user_counts = Counter(
 		(item["user"]["id"], item["user"]["login"], item["user"]["html_url"])
-		for item in issues_created[end_date.year, end_date.month]
+		for item in issues_created[get_period(end_date)]
 		if item["user"]["type"] != "Bot"
 	)
-	print(f"\n### Top Users by Created Issues, excluding Bots ({end_date:%B %Y})\n")
+	print(f"\n### Top Users by Created Issues, excluding Bots ({output_period(end_date)})\n")
 
 	rows = []
 	for (_id, user, url), count in issue_user_counts.most_common(20):

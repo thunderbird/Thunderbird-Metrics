@@ -48,6 +48,37 @@ SUMO_API_URL = f"{SUMO_BASE_URL}api/2/"
 
 PRODUCTS = ("thunderbird", "thunderbird-android")
 
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 3
+
+PERIODS = {1: "Week", 2: "Month", 3: "Quarter", 4: "Year"}
+
+
+def get_period(date):
+	if PERIOD == 1:
+		cal = date.isocalendar()
+		return cal.year, cal.week
+	if PERIOD == 2:
+		return date.year, date.month
+	if PERIOD == 3:
+		return date.year, (date.month - 1) // 3
+	if PERIOD == 4:
+		return date.year
+	return None
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
+
+
 # r"([]!#()*+.<>[\\_`{|}-])"
 MARKDOWN_ESCAPE = re.compile(r"([]!#*<>[\\_`|])")
 
@@ -82,7 +113,9 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 	ax.margins(0.01)
 
-	widths = [timedelta(26)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
+	# Set the width for each bar in the bar graph to 90% of the time difference between them
+	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
+	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
 
 	for name, values in stacks.items():
@@ -160,36 +193,72 @@ def main():
 		print(f"Usage: {sys.argv[0]}", file=sys.stderr)
 		sys.exit(1)
 
-	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
+	logging.basicConfig(level=logging.DEBUG, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	end_date = datetime.now(timezone.utc)
-	year = end_date.year
-	month = end_date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
+	now = datetime.now(timezone.utc)
+	if PERIOD == 1:
+		year = now.year
+		month = now.month
+		day = now.day - now.weekday() - 7
+		if day < 1:
+			month -= 1
+			if month < 1:
+				year -= 1
+				# month += 12
+	elif PERIOD == 2:
+		year = now.year
+		month = now.month - 1
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 3:
+		year = now.year
+		month = now.month - 3
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 4:
+		year = now.year - 1
+
 	start_date = datetime(year - 5, 1, 1, tzinfo=timezone.utc)
+	if PERIOD == 1:
+		weekday = start_date.weekday()
+		if weekday:
+			start_date -= timedelta(6 - weekday)
 
 	dates = []
 	date = start_date
-	while date < end_date:
+	while date < now:
 		dates.append(date)
 
-		year = date.year
-		month = date.month + 1
-		if month > 12:
-			year += 1
-			month -= 12
-		date = date.replace(year=year, month=month)
+		if PERIOD == 1:
+			date += timedelta(weeks=1)
+		elif PERIOD == 2:
+			year = date.year
+			month = date.month + 1
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 3:
+			year = date.year
+			month = date.month + 3
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 4:
+			year = date.year + 1
+			date = date.replace(year=year)
 
 	dates.pop()
 	end_date = dates[-1]
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "support")
+	adir = os.path.join(f"{now:w%V-%G}", "support")
 
 	os.makedirs(adir, exist_ok=True)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "languages.json")
+	file = os.path.join(f"{now:w%V-%G}", "languages.json")
 
 	if not os.path.exists(file):
 		languages = get_languages()
@@ -200,7 +269,7 @@ def main():
 		with open(file, encoding="utf-8") as f:
 			languages = json.load(f)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "SUMO_questions.json")
+	file = os.path.join(f"{now:w%V-%G}", "SUMO_questions.json")
 
 	if not os.path.exists(file):
 		questions = []
@@ -236,7 +305,7 @@ def main():
 
 	for question in questions:
 		date = fromisoformat(question["created"]).replace(tzinfo=LOS_ANGELES).astimezone(timezone.utc)
-		created.setdefault((date.year, date.month), []).append(question)
+		created.setdefault(get_period(date), []).append(question)
 
 	labels = list(reversed(dates))
 	created_status = {key: [] for key in ("Question", "Answered", "Solved")}
@@ -249,14 +318,14 @@ def main():
 
 		rows = []
 		for date in reversed(dates):
-			acreated = created[date.year, date.month]
+			acreated = created[get_period(date)]
 			product_counts = Counter(question["product"] for question in acreated)
 			questions_count = len(acreated)
 			answered_count = sum(1 for question in acreated if question["num_answers"])  # len(question["involved"]) > 1
 			solved_count = sum(1 for question in acreated if question["is_solved"])
 
 			writer.writerow({
-				"Date": f"{date:%B %Y}",
+				"Date": output_period(date),
 				"Questions": questions_count,
 				"Answered": answered_count,
 				"Solved": solved_count,
@@ -264,7 +333,7 @@ def main():
 			})
 
 			rows.append((
-				f"{date:%B %Y}",
+				output_period(date),
 				f"{questions_count:n}",
 				f"{answered_count:n} ({answered_count / questions_count:.4%})",
 				f"{solved_count:n} ({solved_count / questions_count:.4%})",
@@ -278,20 +347,26 @@ def main():
 			for key in PRODUCTS:
 				created_product[key].append(product_counts[key])
 
-	print('### Total Questions Created by Month\n\n(The lifecycle goes "Question" ⟶ "Answered" ⟶ "Solved".)\n')
+	print(f'### Total Questions Created by {PERIODS[PERIOD]}\n\n(The lifecycle goes "Question" ⟶ "Answered" ⟶ "Solved".)\n')
 	output_stacked_bar_graph(
-		adir, labels, created_status, "SUMO Questions Created by Status and Month", "Date", "Total Created", "Status"
+		adir, labels, created_status, f"SUMO Questions Created by Status and {PERIODS[PERIOD]}", "Date", "Total Created", "Status"
 	)
 	output_stacked_bar_graph(
-		adir, labels, created_product, "SUMO Questions Created by Product and Month", "Date", "Total Created", "Product"
+		adir,
+		labels,
+		created_product,
+		f"SUMO Questions Created by Product and {PERIODS[PERIOD]}",
+		"Date",
+		"Total Created",
+		"Product",
 	)
-	output_markdown_table(rows, ("Month", "Questions", "Answered", "Solved", "Products"), True)
+	output_markdown_table(rows, (PERIODS[PERIOD], "Questions", "Answered", "Solved", "Products"), True)
 
-	items = created[end_date.year, end_date.month]
+	items = created[get_period(end_date)]
 
 	tag_counts = Counter((tag["slug"], tag["name"]) for item in items for tag in item["tags"])
 
-	print(f"\n### Top Question Tags ({end_date:%B %Y})\n")
+	print(f"\n### Top Question Tags ({output_period(end_date)})\n")
 
 	output_markdown_table(
 		[(f"{count:n}", f"{name} ({slug})" if name != slug else name) for (slug, name), count in tag_counts.most_common(15)],
@@ -300,7 +375,7 @@ def main():
 
 	locale_counts = Counter(item["locale"] for item in items)
 
-	print(f"\n### Question Locales ({end_date:%B %Y})\n")
+	print(f"\n### Question Locales ({output_period(end_date)})\n")
 
 	output_markdown_table(
 		[(f"{count:n}", key, languages[key]["English"] if key in languages else "") for key, count in locale_counts.most_common()],
@@ -311,7 +386,7 @@ def main():
 		(item["solved_by"]["username"], item["solved_by"]["display_name"]) for item in items if item["is_solved"]
 	)
 
-	print(f"\n### Top Question Solvers ({end_date:%B %Y})\n")
+	print(f"\n### Top Question Solvers ({output_period(end_date)})\n")
 
 	output_markdown_table(
 		[
@@ -325,7 +400,7 @@ def main():
 		(item["solved_by"]["username"], item["solved_by"]["display_name"]) for item in questions if item["is_solved"]
 	)
 
-	print(f"\n### Top Question Solvers (since {start_date:%B %Y})\n")
+	print(f"\n### Top Question Solvers (since {output_period(start_date)})\n")
 
 	output_markdown_table(
 		[
@@ -335,7 +410,7 @@ def main():
 		("Solved", "User"),
 	)
 
-	print(f"\n### Top Questions by Total Votes ({end_date:%B %Y})\n")
+	print(f"\n### Top Questions by Total Votes ({output_period(end_date)})\n")
 
 	rows = []
 	for i, item in enumerate(sorted(items, key=operator.itemgetter("num_votes"), reverse=True), 1):
@@ -345,7 +420,7 @@ def main():
 
 	output_markdown_table(rows, ("#", "Votes", "Product", "Title", "URL"))
 
-	print(f"\n### Top Questions by Total Answers ({end_date:%B %Y})\n")
+	print(f"\n### Top Questions by Total Answers ({output_period(end_date)})\n")
 
 	rows = []
 	for i, item in enumerate(sorted(items, key=operator.itemgetter("num_answers"), reverse=True), 1):

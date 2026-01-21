@@ -38,6 +38,37 @@ TOPICBOX_BASE_URL = "https://thunderbird.topicbox.com/"
 TOPICBOX_API_URL = f"{TOPICBOX_BASE_URL}jmap"
 ACCOUNT_ID = "d9235ee6-1811-11e8-a2b4-c45ae5388869"
 
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 3
+
+PERIODS = {1: "Week", 2: "Month", 3: "Quarter", 4: "Year"}
+
+
+def get_period(date):
+	if PERIOD == 1:
+		cal = date.isocalendar()
+		return cal.year, cal.week
+	if PERIOD == 2:
+		return date.year, date.month
+	if PERIOD == 3:
+		return date.year, (date.month - 1) // 3
+	if PERIOD == 4:
+		return date.year
+	return None
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
+
+
 # r"([]!#()*+.<>[\\_`{|}-])"
 MARKDOWN_ESCAPE = re.compile(r"([]!#*<>[\\_`|])")
 
@@ -72,7 +103,9 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 	ax.margins(0.01)
 
-	widths = [timedelta(26)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
+	# Set the width for each bar in the bar graph to 90% of the time difference between them
+	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
+	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
 
 	for name, values in stacks.items():
@@ -126,37 +159,82 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	date = datetime.now(timezone.utc)
-	year = date.year
-	month = date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
-	start_date = max(datetime(year - 10, 1, 1, tzinfo=timezone.utc), datetime(2018, 8, 1, tzinfo=timezone.utc))
+	now = datetime.now(timezone.utc)
+	if PERIOD == 1:
+		year = now.year
+		month = now.month
+		day = now.day - now.weekday() - 7
+		if day < 1:
+			month -= 1
+			if month < 1:
+				year -= 1
+				# month += 12
+	elif PERIOD == 2:
+		year = now.year
+		month = now.month - 1
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 3:
+		year = now.year
+		month = now.month - 3
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 4:
+		year = now.year - 1
+
+	start_date = max(
+		datetime(year - (10 if PERIOD <= 2 else 20), 1, 1, tzinfo=timezone.utc), datetime(2018, 8, 1, tzinfo=timezone.utc)
+	)
+	if PERIOD == 1:
+		weekday = start_date.weekday()
+		if weekday:
+			start_date -= timedelta(6 - weekday)
+	elif PERIOD == 3:
+		month = (start_date.month - 1) % 3
+		if month:
+			start_date = start_date.replace(month=start_date.month - month)
+	elif PERIOD == 4:
+		if start_date.month - 1:
+			start_date = start_date.replace(month=1)
 
 	dates = []
-	current_start = start_date
-	while current_start < date:
-		year = current_start.year
-		month = current_start.month + 1
-		if month > 12:
-			year += 1
-			month -= 12
-		next_start = current_start.replace(year=year, month=month)
+	date = start_date
+	while date < now:
+		if PERIOD == 1:
+			adate = date + timedelta(weeks=1)
+		elif PERIOD == 2:
+			year = date.year
+			month = date.month + 1
+			if month > 12:
+				year += 1
+				month -= 12
+			adate = date.replace(year=year, month=month)
+		elif PERIOD == 3:
+			year = date.year
+			month = date.month + 3
+			if month > 12:
+				year += 1
+				month -= 12
+			adate = date.replace(year=year, month=month)
+		elif PERIOD == 4:
+			year = date.year + 1
+			adate = date.replace(year=year)
 
-		dates.append((current_start, next_start))
-		current_start = next_start
+		dates.append((date, adate))
+		date = adate
 
 	dates.pop()
-	end_date, _ = dates[-1]
+	# end_date, _ = dates[-1]
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "support")
+	adir = os.path.join(f"{now:w%V-%G}", "support")
 
 	os.makedirs(adir, exist_ok=True)
 
 	print("## 📧 Topicbox Mailing Lists (thunderbird.topicbox.com)\n")
 
-	print(f"Data as of: {date:%Y-%m-%d %H:%M:%S%z}\n")
+	print(f"Data as of: {now:%Y-%m-%d %H:%M:%S%z}\n")
 
 	data = jmap([["Group/get", {"accountId": ACCOUNT_ID, "ids": None}, "grp"]])
 
@@ -194,7 +272,7 @@ def main():
 					f"g{i:02d}m{j:02d}",
 				])
 
-	threads = {(date.year, date.month): Counter() for date, _ in dates}
+	threads = {get_period(date): Counter() for date, _ in dates}
 
 	data = jmap(method_calls)
 
@@ -202,7 +280,7 @@ def main():
 		if result["total"]:
 			mb_id = mailbox_ids[int(call_id[1:3])]
 			date, _ = dates[int(call_id[4:6])]
-			threads[date.year, date.month][mb_id] = result["total"]
+			threads[get_period(date)][mb_id] = result["total"]
 
 	labels = [date for date, _ in reversed(dates)]
 	created_mailbox = {g["name"]: [] for g in mailboxs.values()}
@@ -214,17 +292,17 @@ def main():
 
 		rows = []
 		for date, _ in reversed(dates):
-			thread_counts = threads[date.year, date.month]
+			thread_counts = threads[get_period(date)]
 			count = sum(thread_counts.values())
 
 			writer.writerow({
-				"Date": f"{date:%B %Y}",
+				"Date": output_period(date),
 				"Total Threads": count,
 				**{mailboxs[key]["name"]: value for key, value in thread_counts.items()},
 			})
 
 			rows.append((
-				f"{date:%B %Y}",
+				output_period(date),
 				f"{count:n}",
 				", ".join(f"{mailboxs[key]['name']}: {value:n}" for key, value in thread_counts.most_common(5)),
 			))
@@ -232,11 +310,11 @@ def main():
 			for g in mailboxs.values():
 				created_mailbox[g["name"]].append(thread_counts[g["archiveMailboxId"]])
 
-	print("\n### Total Email Threads by Month\n")
+	print(f"\n### Total Email Threads by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(
-		adir, labels, created_mailbox, "Topicbox Email Threads by Month", "Date", "Total Created", "Mailing List"
+		adir, labels, created_mailbox, f"Topicbox Email Threads by {PERIODS[PERIOD]}", "Date", "Total Created", "Mailing List"
 	)
-	output_markdown_table(rows, ("Month", "Threads", "Mailing Lists (top 5)"), True)
+	output_markdown_table(rows, (PERIODS[PERIOD], "Threads", "Mailing Lists (top 5)"), True)
 
 
 if __name__ == "__main__":

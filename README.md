@@ -30,7 +30,7 @@ The Bugzilla/Phabricator script requires [an access token](https://phabricator.s
 
 It is recommended to provide an [an access token](https://docs.github.com/en/rest/authentication/authenticating-to-the-rest-api) for the GitHub script, as otherwise would be very slow due to the strict rate limit of 60 requests/hour.
 
-To generate all of the e-mails, run: `bash generate.sh`. The results are in a `YYYY-MM` directory for the previous month, with a subdirectory for each of the e-mails.
+To generate all of the e-mails, run: `bash generate.sh`. The results are in a `wWW-YYYY` directory for the current ISO week, with a subdirectory for each of the e-mails.
 
 ## Contributing
 

@@ -73,6 +73,37 @@ LIMIT = 1000
 
 VERBOSE = False
 
+# 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
+PERIOD = 3
+
+PERIODS = {1: "Week", 2: "Month", 3: "Quarter", 4: "Year"}
+
+
+def get_period(date):
+	if PERIOD == 1:
+		cal = date.isocalendar()
+		return cal.year, cal.week
+	if PERIOD == 2:
+		return date.year, date.month
+	if PERIOD == 3:
+		return date.year, (date.month - 1) // 3
+	if PERIOD == 4:
+		return date.year
+	return None
+
+
+def output_period(date):
+	if PERIOD == 1:
+		return f"Week {date:%V, %G}"
+	if PERIOD == 2:
+		return f"{date:%B %Y}"
+	if PERIOD == 3:
+		return f"Quarter {(date.month - 1) // 3 + 1}, {date:%Y}"
+	if PERIOD == 4:
+		return f"{date:%Y}"
+	return None
+
+
 # r"([]!#()*+.<>[\\_`{|}-])"
 MARKDOWN_ESCAPE = re.compile(r"([]!#*<>[\\_`|])")
 
@@ -107,7 +138,9 @@ def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend
 
 	ax.margins(0.01)
 
-	widths = [timedelta(26)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
+	# Set the width for each bar in the bar graph to 90% of the time difference between them
+	days = 6 if PERIOD == 1 else 26 if PERIOD == 2 else 81 if PERIOD == 3 else 328 if PERIOD == 4 else 0
+	widths = [timedelta(days)] + [(labels[i] - labels[i + 1]) * 0.9 for i in range(len(labels) - 1)]
 	cum = [0] * len(labels)
 
 	for name, values in stacks.items():
@@ -336,34 +369,70 @@ def main():
 
 	logging.basicConfig(level=logging.INFO, format="%(filename)s: [%(asctime)s]  %(levelname)s: %(message)s")
 
-	end_date = datetime.now(timezone.utc)
-	year = end_date.year
-	month = end_date.month - 1
-	if month < 1:
-		year -= 1
-		month += 12
-	start_date = datetime(year - 10, 1, 1, tzinfo=timezone.utc)
+	now = datetime.now(timezone.utc)
+	if PERIOD == 1:
+		year = now.year
+		month = now.month
+		day = now.day - now.weekday() - 7
+		if day < 1:
+			month -= 1
+			if month < 1:
+				year -= 1
+				# month += 12
+	elif PERIOD == 2:
+		year = now.year
+		month = now.month - 1
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 3:
+		year = now.year
+		month = now.month - 3
+		if month < 1:
+			year -= 1
+			# month += 12
+	elif PERIOD == 4:
+		year = now.year - 1
+
+	start_date = datetime(year - (10 if PERIOD <= 2 else 20), 1, 1, tzinfo=timezone.utc)
+	if PERIOD == 1:
+		weekday = start_date.weekday()
+		if weekday:
+			start_date -= timedelta(6 - weekday)
 
 	dates = []
 	date = start_date
-	while date < end_date:
+	while date < now:
 		dates.append(date)
 
-		year = date.year
-		month = date.month + 1
-		if month > 12:
-			year += 1
-			month -= 12
-		date = date.replace(year=year, month=month)
+		if PERIOD == 1:
+			date += timedelta(weeks=1)
+		elif PERIOD == 2:
+			year = date.year
+			month = date.month + 1
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 3:
+			year = date.year
+			month = date.month + 3
+			if month > 12:
+				year += 1
+				month -= 12
+			date = date.replace(year=year, month=month)
+		elif PERIOD == 4:
+			year = date.year + 1
+			date = date.replace(year=year)
 
 	dates.pop()
 	end_date = dates[-1]
 
-	adir = os.path.join(f"{end_date:%Y-%m}", "bugzilla")
+	adir = os.path.join(f"{now:w%V-%G}", "bugzilla")
 
 	os.makedirs(adir, exist_ok=True)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "BMO_bugs.json")
+	file = os.path.join(f"{now:w%V-%G}", "BMO_bugs.json")
 
 	if not os.path.exists(file):
 		bugs = []
@@ -400,7 +469,7 @@ def main():
 		for user in (*bug["cc_detail"], bug["creator_detail"], bug["assigned_to_detail"])
 	}
 
-	file = os.path.join(f"{end_date:%Y-%m}", f"Phabricator_revisions_{REPOSITORY}.json")
+	file = os.path.join(f"{now:w%V-%G}", f"Phabricator_revisions_{REPOSITORY}.json")
 
 	if not os.path.exists(file):
 		logging.info("Downloading Phabricator revisions: %s", REPOSITORY)
@@ -428,7 +497,7 @@ def main():
 
 	revision_ids = {revision["id"]: revision for revision in revisions}
 
-	file = os.path.join(f"{end_date:%Y-%m}", f"HG_commits_{REPOSITORY}.json")
+	file = os.path.join(f"{now:w%V-%G}", f"HG_commits_{REPOSITORY}.json")
 
 	if not os.path.exists(file):
 		logging.info("Downloading Mozilla HG commits: %s", REPOSITORY)
@@ -475,7 +544,7 @@ def main():
 		", ".join(map(str, sorted(missing))),
 	)
 
-	file = os.path.join(f"{end_date:%Y-%m}", "Phabricator_users.json")
+	file = os.path.join(f"{now:w%V-%G}", "Phabricator_users.json")
 
 	if os.path.exists(file):
 		with open(file, encoding="utf-8") as f:
@@ -498,7 +567,7 @@ def main():
 
 	for bug in items.values():
 		created_date = fromisoformat(bug["creation_time"])
-		created.setdefault((created_date.year, created_date.month), []).append(bug)
+		created.setdefault(get_period(created_date), []).append(bug)
 
 		if bug["is_open"]:
 			aopen.append(bug)
@@ -507,8 +576,8 @@ def main():
 			aclosed.append(bug)
 			if bug["cf_last_resolved"]:
 				closed_date = fromisoformat(bug["cf_last_resolved"])
-				closed.setdefault((closed_date.year, closed_date.month), []).append(bug)
-				closed_deltas.setdefault((closed_date.year, closed_date.month), []).append(closed_date - created_date)
+				closed.setdefault(get_period(closed_date), []).append(bug)
+				closed_deltas.setdefault(get_period(closed_date), []).append(closed_date - created_date)
 
 	revisions_closed = {}
 	arevisions_closed = []
@@ -519,7 +588,7 @@ def main():
 		if revision["fields"]["status"]["value"] == "published":
 			closed_date = datetime.fromtimestamp(date, timezone.utc)
 			arevisions_closed.append(revision)
-			revisions_closed.setdefault((closed_date.year, closed_date.month), []).append(revision)
+			revisions_closed.setdefault(get_period(closed_date), []).append(revision)
 
 	open_count = len(aopen)
 	counts = Counter(bug["product"] for bug in aopen)
@@ -648,7 +717,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 		rows2 = []
 		rows3 = []
 		for date in reversed(dates):
-			adate = (date.year, date.month)
+			adate = get_period(date)
 
 			created_counts = Counter(bug["status"] for bug in created[adate])
 			created_count = len(created[adate])
@@ -661,21 +730,21 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 
 			difference = created_count - closed_count
 
-			writer1.writerow({"Date": f"{date:%B %Y}", "Total Created": created_count, **created_counts})
-			writer2.writerow({"Date": f"{date:%B %Y}", "Total Closed": closed_count, **closed_counts})
-			writer3.writerow((f"{date:%B %Y}", created_count, closed_count, difference))
+			writer1.writerow({"Date": output_period(date), "Total Created": created_count, **created_counts})
+			writer2.writerow({"Date": output_period(date), "Total Closed": closed_count, **closed_counts})
+			writer3.writerow((output_period(date), created_count, closed_count, difference))
 
 			rows1.append((
-				f"{date:%B %Y}",
+				output_period(date),
 				f"{created_count:n}",
 				", ".join(f"{key}: {count:n}" for key, count in created_counts.most_common()),
 			))
 			rows2.append((
-				f"{date:%B %Y}",
+				output_period(date),
 				f"{closed_count:n}",
 				", ".join(f"{key}: {count:n}" for key, count in closed_counts.most_common()),
 			))
-			rows3.append((f"{date:%B %Y}", f"{created_count:n}", f"{closed_count:n}", f"{difference:n}"))
+			rows3.append((output_period(date), f"{created_count:n}", f"{closed_count:n}", f"{difference:n}"))
 
 			for key in STATUSES:
 				created_statuses[key].append(created_counts[key])
@@ -688,29 +757,41 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 
 			differences.append(difference)
 
-	print("\n### Total Created Bugs by Month\n")
-	output_stacked_bar_graph(adir, labels, created_statuses, "Bugzilla Created Bugs by Month", "Date", "Total Created", "Status")
-	output_markdown_table(rows1, ("Month", "Total Created", "Statuses"), True)
-
-	print("\n### Total Closed Bugs by Month\n")
+	print(f"\n### Total Created Bugs by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(
-		adir, labels, closed_resolutions, "Bugzilla Closed Bugs by Month", "Date", "Total Closed", "Resolution"
+		adir, labels, created_statuses, f"Bugzilla Created Bugs by {PERIODS[PERIOD]}", "Date", "Total Created", "Status"
 	)
-	output_markdown_table(rows2, ("Month", "Total Closed", "Resolutions"), True)
+	output_markdown_table(rows1, (PERIODS[PERIOD], "Total Created", "Statuses"), True)
 
-	print("\n### Total Created vs Total Closed Difference by Month\n\n(Positive numbers mean the backlog is increasing)\n")
+	print(f"\n### Total Closed Bugs by {PERIODS[PERIOD]}\n")
+	output_stacked_bar_graph(
+		adir, labels, closed_resolutions, f"Bugzilla Closed Bugs by {PERIODS[PERIOD]}", "Date", "Total Closed", "Resolution"
+	)
+	output_markdown_table(rows2, (PERIODS[PERIOD], "Total Closed", "Resolutions"), True)
+
+	print(
+		f"\n### Total Created vs Total Closed Difference by {PERIODS[PERIOD]}\n\n(Positive numbers mean the backlog is increasing)\n"
+	)
 	output_line_graph(
-		adir, labels, {"Difference": differences}, "Bugzilla Created vs Closed Difference by Month", "Date", "Difference", None
+		adir,
+		labels,
+		{"Difference": differences},
+		f"Bugzilla Created vs Closed Difference by {PERIODS[PERIOD]}",
+		"Date",
+		"Difference",
+		None,
 	)
-	output_markdown_table(rows3, ("Month", "Total Created", "Total Closed", "Difference"), True)
+	output_markdown_table(rows3, (PERIODS[PERIOD], "Total Created", "Total Closed", "Difference"), True)
 
-	print("\n### Closed Bugs Total Duration by Month\n")
-	output_line_graph(adir, labels, deltas, "Bugzilla Closed Bugs Total Duration by Month", "Date", "Duration (years)", None)
+	print(f"\n### Closed Bugs Total Duration by {PERIODS[PERIOD]}\n")
+	output_line_graph(
+		adir, labels, deltas, f"Bugzilla Closed Bugs Total Duration by {PERIODS[PERIOD]}", "Date", "Duration (years)", None
+	)
 
 	patch_user_counts = Counter(revision["fields"]["authorPHID"] for revision in arevisions_closed)
-	apatch_user_counts = Counter(revision["fields"]["authorPHID"] for revision in revisions_closed[end_date.year, end_date.month])
+	apatch_user_counts = Counter(revision["fields"]["authorPHID"] for revision in revisions_closed[get_period(end_date)])
 	bug_counts = {}
-	for revision in revisions_closed[end_date.year, end_date.month]:
+	for revision in revisions_closed[get_period(end_date)]:
 		bug_counts.setdefault(revision["fields"]["bugzilla.bug-id"], []).append(revision)
 	user_counts = Counter(
 		author
@@ -719,7 +800,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 			revision["fields"]["authorPHID"] for revision in revisions if revision["fields"]["status"]["value"] == "published"
 		}
 	)
-	print(f"\n### Revisions by User ({end_date:%B %Y})\n")
+	print(f"\n### Revisions by User ({output_period(end_date)})\n")
 
 	rows = []
 	changed = False
@@ -758,8 +839,8 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 		with open(file, "w", encoding="utf-8") as f:
 			json.dump(phab_users, f, ensure_ascii=False, indent="\t")
 
-	bug_user_counts = Counter(bug["creator"] for bug in created[end_date.year, end_date.month])
-	print(f"\n### Top Users by Created Bugs ({end_date:%B %Y})\n")
+	bug_user_counts = Counter(bug["creator"] for bug in created[get_period(end_date)])
+	print(f"\n### Top Users by Created Bugs ({output_period(end_date)})\n")
 
 	rows = []
 	for user, count in bug_user_counts.most_common(20):
