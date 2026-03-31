@@ -23,7 +23,7 @@ from collections import Counter, namedtuple
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
 from json.decoder import JSONDecodeError
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import urlparse
 
 import matplotlib.pyplot as plt
 import requests
@@ -168,7 +168,7 @@ def fromisoformat(date_string):
 
 def remove_locale_url(astr):
 	url = urlparse(astr)
-	return urlunparse(url._replace(path=url.path[6:])) if url.path.startswith("/en-US") else astr
+	return url._replace(path=url.path[6:]).geturl() if url.path.startswith("/en-US") else astr
 
 
 VERSION_PART_MAX = (1 << 16) - 1
@@ -211,10 +211,10 @@ def get_tb_versions():
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		logging.critical("%s\n%r", e, r.text)
+		logging.critical("%s\n%r", e, r.text, exc_info=True)
 		sys.exit(1)
 	except (RequestException, JSONDecodeError) as e:
-		logging.critical("%s: %s", type(e).__name__, e)
+		logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 		sys.exit(1)
 
 	return data
@@ -251,10 +251,10 @@ def get_addons(atype):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			logging.critical("%s\n%r", e, r.text)
+			logging.critical("%s\n%r", e, r.text, exc_info=True)
 			sys.exit(1)
 		except (RequestException, JSONDecodeError) as e:
-			logging.critical("%s: %s", type(e).__name__, e)
+			logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 			sys.exit(1)
 
 		addons.extend(data["results"])
@@ -288,7 +288,7 @@ def get_addon_versions(addon_id):
 				return versions
 			sys.exit(1)
 		except (RequestException, JSONDecodeError) as e:
-			logging.critical("%s: %s", type(e).__name__, e)
+			logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 			sys.exit(1)
 
 		versions.extend(data["results"])

@@ -206,7 +206,7 @@ def fromisoformat(date_string):
 	return datetime.fromisoformat(date_string[:-1] + "+00:00" if date_string.endswith("Z") else date_string)
 
 
-def get_all_bugs(product, component, start_date=None):
+def get_all_bugs(product, component, _start_date=None):
 	bugs = []
 	seen = set()
 	offset = 0
@@ -232,10 +232,10 @@ def get_all_bugs(product, component, start_date=None):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			logging.critical("%s\n%r", e, r.text)
+			logging.critical("%s\n%r", e, r.text, exc_info=True)
 			sys.exit(1)
 		except (RequestException, JSONDecodeError) as e:
-			logging.critical("%s: %s", type(e).__name__, e)
+			logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 			sys.exit(1)
 
 		dupes = [bug["id"] for bug in data["bugs"] if bug["id"] in seen or seen.add(bug["id"])]
@@ -253,15 +253,17 @@ def get_all_bugs(product, component, start_date=None):
 
 
 def phabricator_api_bmo(method, data):
+	logging.info("Phabricator %s: %r", method, data)
+
 	try:
 		r = session.post(f"{PHABRICATOR_API_URL}{method}", data={"api.token": PHABRICATOR_TOKEN, **data}, timeout=30)
 		r.raise_for_status()
 		result = r.json()
 	except HTTPError as e:
-		logging.critical("%s\n%r", e, r.text)
+		logging.critical("%s\n%r", e, r.text, exc_info=True)
 		sys.exit(1)
 	except (RequestException, JSONDecodeError) as e:
-		logging.critical("%s: %s", type(e).__name__, e)
+		logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 		sys.exit(1)
 
 	return result["result"]
@@ -271,6 +273,8 @@ def phabricator_api(method, data):
 	results = []
 	offset = 0
 	after = None
+
+	logging.info("Phabricator %s: %r", method, data)
 
 	while True:
 		logging.info("\tOffset %s", offset)
@@ -282,10 +286,10 @@ def phabricator_api(method, data):
 			r.raise_for_status()
 			result = r.json()
 		except HTTPError as e:
-			logging.critical("%s\n%r", e, r.text)
+			logging.critical("%s\n%r", e, r.text, exc_info=True)
 			sys.exit(1)
 		except (RequestException, JSONDecodeError) as e:
-			logging.critical("%s: %s", type(e).__name__, e)
+			logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 			sys.exit(1)
 
 		results.extend(result["result"]["data"])
@@ -295,7 +299,7 @@ def phabricator_api(method, data):
 			break
 
 		offset += 100
-		time.sleep(2)
+		time.sleep(5)
 
 	return results
 
@@ -315,10 +319,10 @@ def hg_get_revisions(repo):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			logging.critical("%s\n%r", e, r.text)
+			logging.critical("%s\n%r", e, r.text, exc_info=True)
 			sys.exit(1)
 		except (RequestException, JSONDecodeError) as e:
-			logging.critical("%s: %s", type(e).__name__, e)
+			logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 			sys.exit(1)
 
 		revisions.extend(data["changesets"][1:] if node else data["changesets"])
@@ -810,7 +814,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 			if data:
 				phab_users[user] = data[0]
 				changed = True
-			time.sleep(2)
+			time.sleep(5)
 
 		bmo_user = bmo_user_ids[phab_users[user]["id"]]
 		if bmo_user["name"] not in phab_users:

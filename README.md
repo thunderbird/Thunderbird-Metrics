@@ -24,7 +24,7 @@ pip3 install requests matplotlib
 # or
 python3 -m pip install requests matplotlib
 ```
-The SUMO script requires Python 3.9 or greater due to the dependency on the [zoneinfo module](https://docs.python.org/3/library/zoneinfo.html).
+The SUMO script requires Python 3.9 or greater due to the dependency on the [zoneinfo module](https://docs.python.org/3/library/zoneinfo.html). On Windows, it also requires the [tzdata library](https://pypi.org/project/tzdata/).
 
 The Bugzilla/Phabricator script requires [an access token](https://phabricator.services.mozilla.com/settings/panel/apitokens/) for Phabricator.
 

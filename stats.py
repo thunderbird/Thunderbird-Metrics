@@ -120,10 +120,10 @@ def get_stats(file):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		logging.critical("%s\n%r", e, r.text)
+		logging.critical("%s\n%r", e, r.text, exc_info=True)
 		sys.exit(1)
 	except (RequestException, JSONDecodeError) as e:
-		logging.critical("%s: %s", type(e).__name__, e)
+		logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 		sys.exit(1)
 
 	return data
@@ -135,10 +135,10 @@ def get_data(file):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		logging.critical("%s\n%r", e, r.text)
+		logging.critical("%s\n%r", e, r.text, exc_info=True)
 		sys.exit(1)
 	except (RequestException, JSONDecodeError) as e:
-		logging.critical("%s: %s", type(e).__name__, e)
+		logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 		sys.exit(1)
 
 	return data
@@ -383,6 +383,7 @@ def main():
 * Are we fast yet?
 	* Firefox: https://arewefastyet.com
 * Are We Fluent Yet?
+	* Thunderbird: https://freaktechnik.github.io/arewefluentinthunderbirdyet.com/
 	* Firefox: https://www.arewefluentyet.com
 * Are we Glean yet?
 	* Firefox: https://arewegleanyet.com

@@ -6,7 +6,11 @@
 
 set -e
 
-export LC_ALL=en_US.UTF-8
+if locale -a | grep -iq '^en_US'; then
+	export LC_ALL=en_US.UTF-8
+else
+	export LC_ALL=C.UTF-8
+fi
 
 # 1 = Weekly, 2 = Monthly, 3 = Quarterly, 4 = Yearly
 PERIOD=3
@@ -70,7 +74,7 @@ Welcome to the Thunderbird Community Metrics, which are designed to complement M
 5. Support (Mozilla Support/SUMO, Mozilla Discourse and Topicbox)
 6. Localization (Pontoon and Weblate)
 
-This is e-mail 1 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
+This is e-mail 1 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Topicbox website, Gmail). PNG versions of the graphs are also attached, as well as the raw CSV data.
 
 ---
 
@@ -98,7 +102,7 @@ Subject: Thunderbird Community Metrics $date2: GitHub
 
 Hello Thunderbird Community,
 
-This is e-mail 2 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
+This is e-mail 2 of 6 of the Thunderbird Community Metrics. Please see the first email for more details. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Topicbox website, Gmail). PNG versions of the graphs are also attached, as well as the raw CSV data.
 
 ---
 
@@ -120,7 +124,7 @@ Subject: Thunderbird Community Metrics $date2: Stats, Mozilla Connect and Pro Id
 
 Hello Thunderbird Community,
 
-This is e-mail 3 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
+This is e-mail 3 of 6 of the Thunderbird Community Metrics. Please see the first email for more details. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Topicbox website, Gmail). PNG versions of the graphs are also attached, as well as the raw CSV data.
 
 ---
 
@@ -146,7 +150,7 @@ Subject: Thunderbird Community Metrics $date2: Add-ons (extensions and themes)
 
 Hello Thunderbird Community,
 
-This is e-mail 4 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
+This is e-mail 4 of 6 of the Thunderbird Community Metrics. Please see the first email for more details. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Topicbox website, Gmail). PNG versions of the graphs are also attached, as well as the raw CSV data.
 
 ---
 
@@ -168,13 +172,17 @@ Subject: Thunderbird Community Metrics $date2: Support (Mozilla Support Forum, M
 
 Hello Thunderbird Community,
 
-This is e-mail 5 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
+This is e-mail 5 of 6 of the Thunderbird Community Metrics. Please see the first email for more details. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Topicbox website, Gmail). PNG versions of the graphs are also attached, as well as the raw CSV data.
 
 ---
 
 # 📊 Thunderbird Community Metrics $date2
 
-$(time python3 -OO sumo.py)
+$(time python3 -OO sumo.py || {
+	echo -e "## 🆘 Mozilla Support Forum/SUMO (support.mozilla.org)\n"
+
+	echo -e "(Unfortunately, due to its API being broken, we had to temporarily disable SUMO from the Metrics.)\n"
+})
 
 
 $(time python3 -OO discourse.py)
@@ -196,7 +204,7 @@ Subject: Thunderbird Community Metrics $date2: Localization (Pontoon and Weblate
 
 Hello Thunderbird Community,
 
-This is e-mail 6 of 6 of the Thunderbird Community Metrics. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Gmail, Topicbox website). PNG versions of the graphs are also attached, as well as the raw CSV data.
+This is e-mail 6 of 6 of the Thunderbird Community Metrics. Please see the first email for more details. It includes inline graphs, so viewing the HTML version is recommended. Tables are included as a fallback and hidden by default when viewing the HTML version. Note that the SVG graphs may not display correctly in other e-mail clients (e.g. Topicbox website, Gmail). PNG versions of the graphs are also attached, as well as the raw CSV data.
 
 ---
 

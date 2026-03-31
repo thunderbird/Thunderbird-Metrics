@@ -170,10 +170,10 @@ def get_questions(product, start_date):
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			logging.critical("%s\n%r", e, r.text)
+			logging.critical("%s\n%r", e, r.text, exc_info=True)
 			sys.exit(1)
 		except (RequestException, JSONDecodeError) as e:
-			logging.critical("%s: %s", type(e).__name__, e)
+			logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 			sys.exit(1)
 
 		questions.extend(data["results"])
@@ -183,7 +183,8 @@ def get_questions(product, start_date):
 
 		page += 1
 
-		time.sleep(0.5)
+		# Rate limit is 100 requests per minute
+		time.sleep(0.6)
 
 	return questions
 

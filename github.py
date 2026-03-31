@@ -228,14 +228,14 @@ def github_api(url, params=None):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		logging.critical("%s\n%r", e, r.text)
+		logging.critical("%s\n%r", e, r.text, exc_info=True)
 		sys.exit(1)
 	except (RequestException, JSONDecodeError) as e:
-		logging.critical("%s: %s", type(e).__name__, e)
+		logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 		sys.exit(1)
 
 	if not int(r.headers["x-ratelimit-remaining"]):
-		sec = int(r.headers["x-ratelimit-reset"]) - time.time()
+		sec = int(r.headers["x-ratelimit-reset"]) - int(time.time())
 		logging.info("Sleeping for %s seconds", sec)
 		time.sleep(max(sec + 10, 60))
 
@@ -280,7 +280,7 @@ def get_languages(org, repo):
 	return data
 
 
-def get_all_issues(org, repo, start_date=None):
+def get_all_issues(org, repo, _start_date=None):
 	issues = []
 	page = 1
 	after = None
@@ -312,7 +312,7 @@ def get_all_issues(org, repo, start_date=None):
 	return issues
 
 
-def get_all_discussions(org, repo, start_date=None):
+def get_all_discussions(org, repo, _start_date=None):
 	discussions = []
 	page = 1
 	after = None
