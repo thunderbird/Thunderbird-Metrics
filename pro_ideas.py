@@ -101,7 +101,7 @@ def fig_to_data_uri(fig):
 		plt.close(fig)
 
 		# "data:image/svg+xml," + quote(buf.getvalue())
-		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode()
+		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend):
@@ -395,7 +395,7 @@ def main():
 				" ".join(item["description"].split()),
 				f"{PRO_IDEAS_BASE_URL}p/{item['slug']}",
 			))
-			if i <= 10:
+			if i <= 20:
 				rows.append((
 					f"{i:n}",
 					f"{item['upvotes_count']:n}",

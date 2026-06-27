@@ -105,7 +105,7 @@ def fig_to_data_uri(fig):
 		plt.close(fig)
 
 		# "data:image/svg+xml," + quote(buf.getvalue())
-		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode()
+		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend):
@@ -163,7 +163,6 @@ def get_questions(product, start_date):
 		try:
 			r = session.get(
 				f"{SUMO_API_URL}question/",
-				headers={"User-Agent": f"{session.headers['User-Agent']} {int(time.time())}"},
 				params={"product": product, "created__gt": f"{start_date:%Y-%m-%d}", "ordering": "+created", "page": page},
 				timeout=30,
 			)

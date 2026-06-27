@@ -112,7 +112,7 @@ def fig_to_data_uri(fig):
 		plt.close(fig)
 
 		# "data:image/svg+xml," + quote(buf.getvalue())
-		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode()
+		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend):
@@ -946,7 +946,7 @@ def main():
 		language_counts.update({lang: count for lang, count in language.items() if lang not in {"HTML", "Fluent"}})
 	language_count = sum(language_counts.values())
 
-	print("\n### Top Programming Languages by Bytes of Code, excluding HTML and Fluent\n")
+	print("\n### Top Programming Languages by Bytes of Code\n\nExcluding HTML and Fluent\n")
 
 	output_markdown_table(
 		[

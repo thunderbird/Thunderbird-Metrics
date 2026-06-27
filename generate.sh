@@ -41,7 +41,7 @@ if [[ $PERIOD -eq 1 ]]; then
 elif [[ $PERIOD -eq 2 ]]; then
 	printf -v date2 '%(%B %Y)T' "$date"
 elif [[ $PERIOD -eq 3 ]]; then
-	printf -v date2 'Quarter %s, %(%Y)T' $(( ($(printf '%(%m)T' "$date") - 1) / 3 + 1 )) "$date"
+	printf -v date2 'Quarter %s, %(%Y)T' $((($(printf '%(%m)T' "$date") - 1) / 3 + 1)) "$date"
 elif [[ $PERIOD -eq 4 ]]; then
 	printf -v date2 '%(%Y)T' "$date"
 fi
@@ -181,7 +181,7 @@ This is e-mail 5 of 6 of the Thunderbird Community Metrics. Please see the first
 $(time python3 -OO sumo.py || {
 	echo -e "## 🆘 Mozilla Support Forum/SUMO (support.mozilla.org)\n"
 
-	echo -e "(Unfortunately, due to its API being broken, we had to temporarily disable SUMO from the Metrics.)\n"
+	echo -e "(Unfortunately, due to its [API being broken](https://github.com/thunderbird/thunderbird-support-reports/issues/7), we had to temporarily disable SUMO from the Metrics.)\n"
 })
 
 
