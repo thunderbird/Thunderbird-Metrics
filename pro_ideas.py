@@ -156,16 +156,35 @@ def output_duration(delta):
 	return ", ".join(text)
 
 
-def get_all_ideas():
+def get_states():
+	try:
+		r = session.get(f"{PRO_IDEAS_API_URL}posts", headers=HEADERS, params={"page": 1, "per_page": 15}, timeout=30)
+		r.raise_for_status()
+		data = r.json()
+	except HTTPError as e:
+		logging.critical("%s\n%r", e, r.text, exc_info=True)
+		sys.exit(1)
+	except (RequestException, JSONDecodeError) as e:
+		logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
+		sys.exit(1)
+
+	return data["custom_states"]
+
+
+def get_all_ideas(states):
 	ideas = []
-	states = []
 	page = 1
 
 	while True:
 		logging.info("\tPage: %s", page)
 
 		try:
-			r = session.get(f"{PRO_IDEAS_API_URL}posts", headers=HEADERS, params={"page": page, "per_page": LIMIT}, timeout=30)
+			r = session.get(
+				f"{PRO_IDEAS_API_URL}posts",
+				headers=HEADERS,
+				params={"state[]": states, "page": page, "per_page": LIMIT},
+				timeout=30,
+			)
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
@@ -176,14 +195,13 @@ def get_all_ideas():
 			sys.exit(1)
 
 		ideas.extend(data["feature_requests"])
-		states.extend(data["custom_states"])
 
 		if len(data["feature_requests"]) < LIMIT:
 			break
 
 		page += 1
 
-	return ideas, states
+	return ideas
 
 
 def main():
@@ -270,7 +288,8 @@ def main():
 	if not os.path.exists(file):
 		start = time.perf_counter()
 
-		ideas, states = get_all_ideas()
+		states = get_states()
+		ideas = get_all_ideas([state["slug"] for state in states])
 
 		end = time.perf_counter()
 		logging.info("Downloaded ideas in %s.", output_duration(timedelta(seconds=end - start)))
@@ -324,9 +343,9 @@ def main():
 		("Status", "Count"),
 	)
 
-	completed_count = sum(1 for item in ideas if item["completed_at"])
+	# completed_count = sum(1 for item in ideas if item["completed_at"])
 
-	print(f"\nIdeas completed: {completed_count:n} / {ideas_count:n} ({completed_count / ideas_count:.4%})")
+	# print(f"\nIdeas completed: {completed_count:n} / {ideas_count:n} ({completed_count / ideas_count:.4%})")
 
 	mean = sum(deltas, timedelta()) / len(deltas)
 
