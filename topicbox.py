@@ -95,7 +95,7 @@ def fig_to_data_uri(fig):
 		plt.close(fig)
 
 		# "data:image/svg+xml," + quote(buf.getvalue())
-		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode()
+		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend):
@@ -143,10 +143,10 @@ def jmap(method_calls):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		logging.critical("%s\n%r", e, r.text)
+		logging.critical("%s\n%r", e, r.text, exc_info=True)
 		sys.exit(1)
 	except (RequestException, JSONDecodeError) as e:
-		logging.critical("%s: %s", type(e).__name__, e)
+		logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 		sys.exit(1)
 
 	return data["methodResponses"]

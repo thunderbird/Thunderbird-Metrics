@@ -105,7 +105,7 @@ def fig_to_data_uri(fig):
 		plt.close(fig)
 
 		# "data:image/svg+xml," + quote(buf.getvalue())
-		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode()
+		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def output_stacked_bar_graph(adir, labels, stacks, title, xlabel, ylabel, legend):
@@ -163,17 +163,16 @@ def get_questions(product, start_date):
 		try:
 			r = session.get(
 				f"{SUMO_API_URL}question/",
-				headers={"User-Agent": f"{session.headers['User-Agent']} {int(time.time())}"},
 				params={"product": product, "created__gt": f"{start_date:%Y-%m-%d}", "ordering": "+created", "page": page},
 				timeout=30,
 			)
 			r.raise_for_status()
 			data = r.json()
 		except HTTPError as e:
-			logging.critical("%s\n%r", e, r.text)
+			logging.critical("%s\n%r", e, r.text, exc_info=True)
 			sys.exit(1)
 		except (RequestException, JSONDecodeError) as e:
-			logging.critical("%s: %s", type(e).__name__, e)
+			logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 			sys.exit(1)
 
 		questions.extend(data["results"])
@@ -183,7 +182,8 @@ def get_questions(product, start_date):
 
 		page += 1
 
-		time.sleep(0.5)
+		# Rate limit is 100 requests per minute
+		time.sleep(0.6)
 
 	return questions
 

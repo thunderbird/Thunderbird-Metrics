@@ -54,7 +54,7 @@ def fig_to_data_uri(fig):
 		plt.close(fig)
 
 		# "data:image/svg+xml," + quote(buf.getvalue())
-		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode()
+		return "data:image/svg+xml;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
 
 
 def output_line_graph1(adir, series, title, xlabel, ylabel, legend):
@@ -120,10 +120,10 @@ def get_stats(file):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		logging.critical("%s\n%r", e, r.text)
+		logging.critical("%s\n%r", e, r.text, exc_info=True)
 		sys.exit(1)
 	except (RequestException, JSONDecodeError) as e:
-		logging.critical("%s: %s", type(e).__name__, e)
+		logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 		sys.exit(1)
 
 	return data
@@ -135,10 +135,10 @@ def get_data(file):
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
-		logging.critical("%s\n%r", e, r.text)
+		logging.critical("%s\n%r", e, r.text, exc_info=True)
 		sys.exit(1)
 	except (RequestException, JSONDecodeError) as e:
-		logging.critical("%s: %s", type(e).__name__, e)
+		logging.critical("%s: %s", type(e).__name__, e, exc_info=True)
 		sys.exit(1)
 
 	return data
@@ -283,7 +283,7 @@ def main():
 	ff_date = max(ff_stats)
 	ff_locales_item = ff_stats[ff_date]
 
-	rows = [[""] * 6 for _ in range(min(15, max(len(tb_locales_item["versions"]), len(ff_locales_item))))]
+	rows = [["-", "", "", "-", "", ""] for _ in range(min(15, max(len(tb_locales_item["versions"]), len(ff_locales_item))))]
 
 	for row, (key, count) in zip(rows, Counter(tb_locales_item["versions"]).most_common(15)):
 		row[:3] = (f"{count / tb_locales_item['count']:.4%}", key, languages[key]["English"] if key in languages else "")
@@ -326,7 +326,7 @@ def main():
 	ff_date = max(ff_stats)
 	ff_os_item = ff_stats[ff_date]
 
-	rows = [[""] * 5 for _ in range(max(len(tb_oss_item["versions"]), len(ff_os_item)))]
+	rows = [["-", "", "", "-", ""] for _ in range(max(len(tb_oss_item["versions"]), len(ff_os_item)))]
 
 	for row, (key, count) in zip(rows, Counter(tb_oss_item["versions"]).most_common()):
 		row[:3] = (f"{count / tb_oss_item['count']:%}", key, OPERATING_SYSTEMS.get(key, ""))
@@ -383,11 +383,16 @@ def main():
 * Are we fast yet?
 	* Firefox: https://arewefastyet.com
 * Are We Fluent Yet?
+	* Thunderbird: https://freaktechnik.github.io/arewefluentinthunderbirdyet.com/
 	* Firefox: https://www.arewefluentyet.com
 * Are we Glean yet?
 	* Firefox: https://arewegleanyet.com
 * Are we Design Tokens yet?
 	* Firefox: https://firefoxux.github.io/arewedesigntokensyet/
+* Are we `moz-src://` yet?
+	* Firefox: https://arewemozsrcyet.com
+* Test Health:
+	* Firefox: https://tests.firefox.dev
 * What Train is it now? (Release Calendar)
 	* Thunderbird: https://jfx2006.github.io/thunderbird-ci-docs/
 	* Firefox: https://whattrainisitnow.com
