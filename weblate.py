@@ -14,9 +14,11 @@ import operator
 import os
 import platform
 import sys
+import time
 from datetime import datetime, timedelta, timezone
-from itertools import starmap
+from itertools import count, starmap
 from json.decoder import JSONDecodeError
+from urllib.parse import urljoin
 
 import matplotlib.pyplot as plt
 import requests
@@ -149,12 +151,27 @@ def get_project_langs(project):
 
 def get_project_credits(project, start, end):
 	try:
-		r = session.get(
-			f"{WEBLATE_API_URL}projects/{project}/credits/",
+		r = session.post(
+			f"{WEBLATE_API_URL}projects/{project}/reports/",
 			headers=HEADERS,
-			params={"start": start.isoformat(), "end": end.isoformat()},
+			json={"kind": "credits", "start": start.isoformat(), "end": end.isoformat()},
 			timeout=30,
 		)
+		r.raise_for_status()
+		data = r.json()
+
+		url = urljoin(WEBLATE_API_URL, data["task_url"])
+		for i in count():
+			r = session.get(url, headers=HEADERS, timeout=30)
+			r.raise_for_status()
+			task = r.json()
+
+			if task["completed"]:
+				break
+
+			time.sleep(min(1 << i, 30))
+
+		r = session.get(urljoin(WEBLATE_API_URL, task["result"]["url"]), headers=HEADERS, timeout=30)
 		r.raise_for_status()
 		data = r.json()
 	except HTTPError as e:
@@ -227,31 +244,26 @@ def main():
 		complete_count = len(complete)
 
 		print(f"#### Language codes: {langs_count:n}\n")
-		print(f"#### Languages Complete: {complete_count:n} / {langs_count:n} ({complete_count / langs_count:.4%})\n")
+		print(f"#### Languages Complete: {complete_count:n} / {langs_count:n} ({complete_count / langs_count:.2%})\n")
 		print("\n".join(f"* {name!r} ({code})" for (name, code) in complete))
 
 		labels = []
-		translations = {key: [] for key in ("Approved", "Unapproved")}
+		translations = {key: [] for key in ("Approved", "Read-only", "Unapproved", "Untranslated")}
 
 		with open(os.path.join(adir, f"Weblate_{slug}.csv"), "w", newline="", encoding="utf-8") as csvfile:
 			writer = csv.writer(csvfile)
 
-			writer.writerow(("name", "code", "approved", "translated", "total"))
+			writer.writerow(("name", "code", "approved", "readonly", "translated", "total"))
 
 			for item in sorted(data, key=lambda x: (x["approved"] + x["readonly"], x["translated"]), reverse=True):
-				writer.writerow((
-					item["name"],
-					item["code"],
-					item["approved"] + item["readonly"],
-					item["translated"],
-					item["total"],
-				))
+				writer.writerow((item["name"], item["code"], item["approved"], item["readonly"], item["translated"], item["total"]))
 
 				labels.append(item["name"])
 
-				translations["Approved"].append(item["approved"] + item["readonly"])
-				# translations["Read only"].append(item["readonly"])
+				translations["Approved"].append(item["approved"])
+				translations["Read-only"].append(item["readonly"])
 				translations["Unapproved"].append(item["translated"] - item["readonly"] - item["approved"])
+				translations["Untranslated"].append(item["total"] - item["translated"])
 
 		output_stacked_bar_graph(
 			adir, labels, translations, f"Weblate {stats['name']} Languages by Approved", "Language", "Total Strings", "Strings"
@@ -263,13 +275,13 @@ def main():
 		for i, item in enumerate(
 			sorted(
 				(lang for lang in data if (lang["total"] - lang["readonly"]) != lang["approved"]),
-				key=operator.itemgetter("approved"),
+				key=lambda x: x["approved"] / x["total"],
 				reverse=True,
 			),
 			1,
 		):
 			rows.append((
-				f"{item['approved'] / item['total']:.4%} ({item['approved']:n} / {item['total']:n})",
+				f"{item['approved'] / item['total']:.2%} ({item['approved']:n} / {item['total']:n})",
 				f"{item['name']!r} ({item['code']})",
 			))
 			if i >= 5:
@@ -278,7 +290,7 @@ def main():
 		output_markdown_table(rows, ("Approved %", "Language"))
 
 		print(
-			f"\n**Total Approved Strings**: {stats['approved']:n} / {stats['total']:n} ({stats['approved'] / stats['total']:.4%})\n"
+			f"\n**Total Approved Strings**: {stats['approved']:n} / {stats['total']:n} ({stats['approved'] / stats['total']:.2%})\n"
 		)
 
 		print("#### Languages with the most Unapproved Strings\n")
@@ -292,10 +304,10 @@ def main():
 		output_markdown_table(rows, ("Unapproved", "Language"))
 
 		print(
-			f"\n**Total Unapproved Strings**: {stats['translated'] - stats['readonly'] - stats['approved']:n} / {stats['total']:n} ({(stats['translated'] - stats['readonly'] - stats['approved']) / stats['total']:.4%})\n"
+			f"\n**Total Unapproved Strings**: {stats['translated'] - stats['readonly'] - stats['approved']:n} / {stats['total']:n} ({(stats['translated'] - stats['readonly'] - stats['approved']) / stats['total']:.2%})\n"
 		)
 
-		print("#### Top Languages by percentage Translated (awaiting approval)\n")
+		print("#### Top Languages by percentage Translated (approved or awaiting approval)\n")
 
 		rows = []
 		for i, item in enumerate(
@@ -307,8 +319,8 @@ def main():
 			1,
 		):
 			rows.append((
-				f"{item['translated'] / item['total']:.4%} ({item['translated']:n} / {item['total']:n})",
-				f"{item['approved'] / (item['total'] - item['readonly']):.4%}",
+				f"{item['translated'] / item['total']:.2%} ({item['translated']:n} / {item['total']:n})",
+				f"{item['approved'] / item['total']:.2%}",
 				f"{item['name']!r} ({item['code']})",
 			))
 			if i >= 15:
@@ -317,15 +329,19 @@ def main():
 		output_markdown_table(rows, ("Translated %", "Approved %", "Language"))
 
 		print(
-			f"\n**Total Translated Strings**: {stats['translated']:n} / {stats['total']:n} ({stats['translated'] / stats['total']:.4%})\n"
+			f"\n**Total Translated Strings**: {stats['translated']:n} / {stats['total']:n} ({stats['translated'] / stats['total']:.2%})\n"
 		)
 
-		print("#### Top Missing Languages by Population (number of native speakers)\n")
+		print("#### Top Missing Weblate Language Codes by Population (number of native speakers)\n")
 
 		rows = []
 		for i, item in enumerate(
 			sorted(
-				(lang for lang in languages if lang["code"] not in langs and "@" not in lang["code"]),
+				(
+					lang
+					for lang in languages
+					if lang["code"] not in langs and "@" not in lang["code"] and lang["code"] != "en_devel"
+				),
 				key=operator.itemgetter("population"),
 				reverse=True,
 			),
@@ -340,10 +356,18 @@ def main():
 		print(f"\n#### Top Contributors ({output_period(start_date)})\n")
 
 		if WEBLATE_TOKEN is not None:
-			acredits = get_project_credits(slug, start_date, end_date)
+			data = get_project_credits(slug, start_date, end_date)
+
+			acredits = {}
+			for language in data["data"]:
+				for authors in language.values():
+					for author in authors:
+						acredits.setdefault((author["username"], author["email"], author["full_name"]), author.copy())[
+							"change_count"
+						] += author["change_count"]
 
 			rows = []
-			for i, item in enumerate(sorted(acredits, key=operator.itemgetter("change_count"), reverse=True), 1):
+			for i, item in enumerate(sorted(acredits.values(), key=operator.itemgetter("change_count"), reverse=True), 1):
 				rows.append((f"{item['change_count']:n}", item["full_name"]))
 				if i >= 10:
 					break

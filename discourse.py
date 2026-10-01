@@ -323,14 +323,15 @@ def main():
 	output_markdown_table(
 		[
 			(
-				f"{category['topic_count']:n} / {category['post_count']:n}",
+				f"{category['topic_count']:n}",
+				f"{category['post_count']:n}",
 				category["name"],
 				textwrap.shorten(category["description_text"], 80, placeholder="…"),
 				f"{DISCOURSE_BASE_URL}c/{category['slug']}/{category['id']}",
 			)
 			for category in categories.values()
 		],
-		("Topics / Posts", "Category", "Description", "URL"),
+		("Topics", "Posts", "Category", "Description", "URL"),
 	)
 
 	created = {}
@@ -340,12 +341,12 @@ def main():
 		created.setdefault(get_period(date), []).append(topic)
 
 	labels = list(reversed(dates))
-	created_status = {key: [] for key in ("Topic", "Answered", "Solved")}
+	created_status = {key: [] for key in ("Topic", "Replied", "Solved")}
 	created_category = {category["name"]: [] for category in categories.values()}
 
 	with open(os.path.join(adir, "Discourse_topics.csv"), "w", newline="", encoding="utf-8") as csvfile:
 		writer = csv.DictWriter(
-			csvfile, ("Date", "Topics", "Answered", "Solved", *(category["name"] for category in categories.values()))
+			csvfile, ("Date", "Topics", "Replied", "Solved", *(category["name"] for category in categories.values()))
 		)
 
 		writer.writeheader()
@@ -355,14 +356,14 @@ def main():
 			acreated = created.get(get_period(date), [])
 			category_counts = Counter(topic["category_id"] for topic in acreated)
 			topics_count = len(acreated)
-			answered_count = sum(1 for topic in acreated if topic["posts_count"] > 1)  # len(topic["posters"]) > 1
+			replied_count = sum(1 for topic in acreated if topic["posts_count"] > 1)  # len(topic["posters"]) > 1
 			solved_count = sum(1 for topic in acreated if topic["has_accepted_answer"])
 			# posts_count = sum(topic["posts_count"] for topic in acreated)
 
 			writer.writerow({
 				"Date": output_period(date),
 				"Topics": topics_count,
-				"Answered": answered_count,
+				"Replied": replied_count,
 				"Solved": solved_count,
 				**{categories[key]["name"]: count for key, count in category_counts.items()},
 			})
@@ -370,19 +371,21 @@ def main():
 			rows.append((
 				output_period(date),
 				f"{topics_count:n}",
-				f"{answered_count:n} ({answered_count / topics_count:.4%})" if topics_count else "",
-				f"{solved_count:n} ({solved_count / topics_count:.4%})" if topics_count else "",
+				f"{replied_count:n} ({replied_count / topics_count:.2%})" if topics_count else "",
+				f"{solved_count:n} ({solved_count / topics_count:.2%})" if topics_count else "",
 				", ".join(f"{categories[key]['name']}: {count:n}" for key, count in category_counts.most_common()),
 			))
 
 			created_status["Solved"].append(solved_count)
-			created_status["Answered"].append(answered_count - solved_count)
-			created_status["Topic"].append(topics_count - answered_count)
+			created_status["Replied"].append(replied_count - solved_count)
+			created_status["Topic"].append(topics_count - replied_count)
 
 			for category in categories.values():
 				created_category[category["name"]].append(category_counts[category["id"]])
 
-	print(f'\n### Total Topics Created by {PERIODS[PERIOD]}\n\n(The lifecycle goes "Topic" ⟶ "Answered" ⟶ "Solved".)\n')
+	print(
+		f'\n### Total Topics Created by {PERIODS[PERIOD]}\n\n"(The lifecycle goes "Topic" ⟶ "Replied" ⟶ "Solved". Replied means the topic has at least one reply. Solved means it has an accepted answer.)\n'
+	)
 	output_stacked_bar_graph(
 		adir,
 		labels,
@@ -401,7 +404,7 @@ def main():
 		"Total Created",
 		"Category",
 	)
-	output_markdown_table(rows, (PERIODS[PERIOD], "Topics", "Answered", "Solved", "Categories"), True)
+	output_markdown_table(rows, (PERIODS[PERIOD], "Topics", "Replied", "Solved", "Categories"), True)
 
 	items = created.get(get_period(end_date))
 

@@ -329,7 +329,7 @@ def main():
 	print("#### States\n")
 	output_markdown_table(
 		[
-			(astates[key]["name"], f"{count:n} / {ideas_count:n} ({count / ideas_count:.4%})")
+			(astates[key]["name"], f"{count:n} / {ideas_count:n} ({count / ideas_count:.2%})")
 			for key, count in state_counts.most_common()
 		],
 		("State", "Count"),
@@ -337,15 +337,17 @@ def main():
 
 	status_counts = Counter(item["status"] for item in ideas)
 
-	print("\n#### Statuses\n")
+	print("\nStates are the TB Pro specific states, while statuses are the underlying idea statuses.\n")
+
+	print("#### Statuses\n")
 	output_markdown_table(
-		[(key, f"{count:n} / {ideas_count:n} ({count / ideas_count:.4%})") for key, count in status_counts.most_common()],
+		[(key, f"{count:n} / {ideas_count:n} ({count / ideas_count:.2%})") for key, count in status_counts.most_common()],
 		("Status", "Count"),
 	)
 
 	# completed_count = sum(1 for item in ideas if item["completed_at"])
 
-	# print(f"\nIdeas completed: {completed_count:n} / {ideas_count:n} ({completed_count / ideas_count:.4%})")
+	# print(f"\nIdeas completed: {completed_count:n} / {ideas_count:n} ({completed_count / ideas_count:.2%})")
 
 	mean = sum(deltas, timedelta()) / len(deltas)
 

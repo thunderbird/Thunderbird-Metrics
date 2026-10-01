@@ -628,7 +628,7 @@ def main():
 			for item in (((org, None) for org in ORGANIZATIONS), REPOSITORIES)
 			for organization, repository in item
 		],
-		("Issues", "Pull Requests", "Organization", "Repository"),
+		("Open Issues", "Open Pull Requests", "Organization", "Repository"),
 	)
 
 	issue_counts = Counter("/".join(urlparse(issue["repository_url"]).path.split("/")[-2:]) for issue in issues_open)
@@ -639,7 +639,7 @@ def main():
 		if issue["type"] or (issue["labels"] and not any(label["name"] == "unconfirmed" for label in issue["labels"]))
 	)  # issue['assignee']
 
-	print(f"\n### Total Open Issues: {issues_count:n} / {sum(1 for issue in issues if 'pull_request' not in issue):n}\n")
+	print(f"\n### Total Open Issues: {issues_count:n} of {sum(1 for issue in issues if 'pull_request' not in issue):n}\n")
 
 	rows = [(f"{count:n}", key) for key, count in issue_counts.most_common(10)]
 	rows.append(("…", f"({len(issue_counts):n} repositories total)"))
@@ -647,8 +647,8 @@ def main():
 
 	print(f"\nSee all open Issues: {GITHUB_BASE_URL}search?q=org%3Athunderbird+state%3Aopen+type%3Aissue")
 
-	print(f"\n**Triaged Open Issues**: {triaged_issues:n} / {issues_count:n} ({triaged_issues / issues_count:.4%})\n")
-	print("Triaged meaning it has a type or at least one label and not the 'unconfirmed' label.\n")
+	print(f"\n**Triaged Open Issues**: {triaged_issues:n} / {issues_count:n} ({triaged_issues / issues_count:.2%})\n")
+	print("Triaged means it has a type, or at least one label and no 'unconfirmed' label.\n")
 
 	mean = sum(issues_open_deltas, timedelta()) / len(issues_open_deltas)
 
@@ -669,7 +669,7 @@ def main():
 
 		print("#### Open Issue Types:\n\n(Most issues do not yet have a type set.)\n")
 		output_markdown_table(
-			[(key, f"{count:n} / {issues_count:n} ({count / issues_count:.4%})") for key, count in type_counts.most_common()],
+			[(key, f"{count:n} / {issues_count:n} ({count / issues_count:.2%})") for key, count in type_counts.most_common()],
 			("Type", "Count"),
 		)
 
@@ -678,7 +678,7 @@ def main():
 
 	print("\n#### Closed Issue States:\n")
 	output_markdown_table(
-		[(key, f"{count:n} / {reasons_count:n} ({count / reasons_count:.4%})") for key, count in reason_counts.most_common()],
+		[(key, f"{count:n} / {reasons_count:n} ({count / reasons_count:.2%})") for key, count in reason_counts.most_common()],
 		("State", "Count"),
 	)
 
@@ -686,7 +686,7 @@ def main():
 	prs_count = len(pr_open)
 	triaged_prs = sum(1 for issue in pr_open if issue["type"] or issue["labels"] or issue["assignee"])
 
-	print(f"\n### Total Open Pull Requests: {prs_count:n} / {sum(1 for issue in issues if 'pull_request' in issue):n}\n")
+	print(f"\n### Total Open Pull Requests: {prs_count:n} of {sum(1 for issue in issues if 'pull_request' in issue):n}\n")
 
 	rows = [(f"{count:n}", key) for key, count in pr_counts.most_common(5)]
 	rows.append(("…", f"({len(pr_counts):n} repositories total)"))
@@ -694,8 +694,8 @@ def main():
 
 	print(f"\nSee all open Pull Requests: {GITHUB_BASE_URL}search?q=org%3Athunderbird+state%3Aopen+type%3Apr")
 
-	print(f"\n**Triaged Open Pull Requests**: {triaged_prs:n} / {prs_count:n} ({triaged_prs / prs_count:.4%})\n")
-	print("Triaged meaning it has a type, at least one label or an assignee.\n")
+	print(f"\n**Triaged Open Pull Requests**: {triaged_prs:n} / {prs_count:n} ({triaged_prs / prs_count:.2%})\n")
+	print("Triaged means it has a type, at least one label, or an assignee.\n")
 
 	mean = sum(pr_open_deltas, timedelta()) / len(pr_open_deltas)
 
@@ -708,7 +708,7 @@ def main():
 
 	print("#### Closed Pull Request States:\n")
 	output_markdown_table(
-		[(key, f"{count:n} / {states_count:n} ({count / states_count:.4%})") for key, count in state_counts.most_common()],
+		[(key, f"{count:n} / {states_count:n} ({count / states_count:.2%})") for key, count in state_counts.most_common()],
 		("State", "Count"),
 	)
 
@@ -819,6 +819,19 @@ def main():
 
 			differences.append(difference)
 
+	period_key = get_period(end_date)
+	period_issues_created_count = len(issues_created[period_key])
+	period_issues_closed_count = len(issues_closed[period_key])
+	period_pr_created_count = len(pr_created[period_key])
+	period_pr_closed_count = len(pr_closed[period_key])
+	print(f"\n**{output_period(end_date)} summary:**")
+	print(
+		f"{period_issues_created_count:n} issues created, {period_issues_closed_count:n} closed (difference: {period_issues_created_count - period_issues_closed_count:+n})"
+	)
+	print(
+		f"{period_pr_created_count:n} PRs created, {period_pr_closed_count:n} closed (difference: {period_pr_created_count - period_pr_closed_count:+n})\n"
+	)
+
 	print(f"\n### Total Created Issues and Pull Requests by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(
 		adir,
@@ -830,7 +843,16 @@ def main():
 		"State",
 	)
 	output_markdown_table(
-		rows1, (PERIODS[PERIOD], "Created Issues", "Created Issue State", "Created PRs", "Created PR State", "Total Created"), True
+		rows1,
+		(
+			PERIODS[PERIOD],
+			"Created Issues",
+			"Created Issues Current State",
+			"Created PRs",
+			"Created PRs Current State",
+			"Total Created",
+		),
+		True,
 	)
 
 	print(f"\n### Total Closed Issues and Pull Requests by {PERIODS[PERIOD]}\n")
@@ -946,12 +968,12 @@ def main():
 		language_counts.update({lang: count for lang, count in language.items() if lang not in {"HTML", "Fluent"}})
 	language_count = sum(language_counts.values())
 
-	print("\n### Top Programming Languages by Bytes of Code\n\nExcluding HTML and Fluent\n")
+	print("\n### Top Programming Languages by Bytes of Code\n\nExcluding HTML and Fluent. These are GitHub reported statistics.\n")
 
 	output_markdown_table(
 		[
 			(
-				f"{count / language_count:.4%}",
+				f"{count / language_count:.2%}",
 				f"{output_unit(count)}B",
 				f"{f'{LANGUAGE_EMOJI[key]} ' if key in LANGUAGE_EMOJI else ''}{key}",
 			)

@@ -354,6 +354,8 @@ def main():
 		adate = datetime.fromisoformat(item["post_time"]).astimezone(timezone.utc)
 		created.setdefault(get_period(adate), []).append(item)
 
+	for item in aitems:
+		adate = datetime.fromisoformat(item["post_time"]).astimezone(timezone.utc)
 		if "status" in item and not item["status"]["completed"]:
 			deltas.append(date - adate)
 
@@ -368,6 +370,7 @@ def main():
 
 	print("\n#### Labels\n")
 	output_markdown_table([(label, f"{len(ideas[label]):n}") for label in LABELS], ("Label", "Count"))
+	print("\nLabel counts include merged duplicate ideas and are not mutually exclusive.")
 
 	status_counts = Counter((item["status"]["key"], item["status"]["name"]) for item in aitems if "status" in item)
 	idea_count = board_counts["ideas"]
@@ -375,7 +378,7 @@ def main():
 	print("\n#### Idea Statuses\n")
 	output_markdown_table(
 		[
-			(f"{name} ({key})", f"{count:n} / {idea_count:n} ({count / idea_count:.4%})")
+			(f"{name} ({key})", f"{count:n} / {idea_count:n} ({count / idea_count:.2%})")
 			for (key, name), count in status_counts.most_common()
 		],
 		("Idea Status", "Count"),
@@ -383,7 +386,7 @@ def main():
 
 	completed_count = sum(1 for item in aitems if "status" in item and item["status"]["completed"])
 
-	print(f"\nIdeas completed: {completed_count:n} / {idea_count:n} ({completed_count / idea_count:.4%})")
+	print(f"\nIdeas completed: {completed_count:n} / {idea_count:n} ({completed_count / idea_count:.2%})")
 
 	mean = sum(deltas, timedelta()) / len(deltas)
 
@@ -395,7 +398,7 @@ def main():
 	solved_count = sum(1 for item in aitems if item["board"]["id"] == "discussions" and item["conversation"]["solved"])
 
 	print("\n#### Discussions\n")
-	print(f"* Discussions solved: {solved_count:n} / {discussion_count:n} ({solved_count / discussion_count:.4%})")
+	print(f"* Discussions solved: {solved_count:n} / {discussion_count:n} ({solved_count / discussion_count:.2%})")
 
 	alabels = list(reversed(dates))
 	created_status = {key: [] for key in STATUSES}
@@ -458,7 +461,11 @@ def main():
 	)
 	output_markdown_table(rows, (PERIODS[PERIOD], "Created", "Boards", "Labels", "Idea Statuses"), True)
 
-	print("\n### Top Ideas/Discussions by Total Kudos\n")
+	print(
+		"\nWhere a value is shown as `A + B`, `A` is the count from the idea itself and `B` is from each level of nested duplicate ideas.\n"
+	)
+
+	print("### Top Ideas/Discussions by Total Kudos\n")
 
 	with open(os.path.join(adir, "Mozilla Connect_kudos.csv"), "w", newline="", encoding="utf-8") as csvfile:
 		writer = csv.writer(csvfile)

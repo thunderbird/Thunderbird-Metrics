@@ -600,14 +600,16 @@ def main():
 
 	missing = len(bugs) - len(items)
 
-	print(f"### Total Open Bugs: {open_count:n} / {len(items):n}\n")
+	print(f"### Total Open Bugs: {open_count:n} of {len(items):n}\n")
 
 	if missing:
-		print(f"(Missing bugs: {missing:n})\n")
+		print(
+			f"(Bugs missing from these Metrics: {missing:n}, see [Bugzilla API bug]({BUGZILLA_BASE_URL}show_bug.cgi?id=1966346))\n"
+		)
 
 	output_markdown_table(
 		[(f"{counts[product]:n}", product, component or "(all)") for products, component in PRODUCTS for product in products],
-		("Bugs", "Product", "Component"),
+		("Open Bugs", "Product", "Component"),
 	)
 
 	if VERBOSE:
@@ -617,11 +619,11 @@ def main():
 
 		rows = [(f"{count:n}", product, component) for (product, component), count in counts.most_common(30)]
 		rows.append(("…", "…", f"({len(counts):n} components total)"))
-		output_markdown_table(rows, ("Bugs", "Product", "Component"))
+		output_markdown_table(rows, ("Open Bugs", "Product", "Component"))
 
 	triaged = sum(1 for bug in aopen if bug["is_confirmed"] and bug["priority"] != "--")
 
-	print(f"\n**Triaged Open Bugs** (is confirmed and has a priority): {triaged:n} / {open_count:n} ({triaged / open_count:.4%})\n")
+	print(f"\n**Triaged Open Bugs** (is confirmed and has a priority): {triaged:n} / {open_count:n} ({triaged / open_count:.2%})\n")
 
 	mean = sum(open_deltas, timedelta()) / len(open_deltas)
 
@@ -633,7 +635,7 @@ def main():
 
 	print("#### Open Bug Statuses\n")
 	output_markdown_table(
-		[(key, f"{count:n} / {open_count:n} ({count / open_count:.4%})") for key, count in status_counts.most_common()],
+		[(key, f"{count:n} / {open_count:n} ({count / open_count:.2%})") for key, count in status_counts.most_common()],
 		("Status", "Count"),
 	)
 
@@ -641,7 +643,7 @@ def main():
 
 	print("\n#### Open Bug Types\n")
 	output_markdown_table(
-		[(key, f"{count:n} / {open_count:n} ({count / open_count:.4%})") for key, count in type_counts.most_common()],
+		[(key, f"{count:n} / {open_count:n} ({count / open_count:.2%})") for key, count in type_counts.most_common()],
 		("Type", "Count"),
 	)
 
@@ -670,7 +672,7 @@ def main():
 * Regression: {keyword_counts["regression"]:n}
 * Dataloss: {keyword_counts["dataloss"]:n}
 * Crash: {keyword_counts["crash"]:n}
-* Performace: {keyword_counts["perf"]:n}
+* Performance: {keyword_counts["perf"]:n}
 * Parity Outlook: {keyword_counts["parity-Outlook"]:n}
 * Help Wanted: {keyword_counts["helpwanted"]:n}
 * [Good First Bugs]({BUGZILLA_SHORT_URL}product:Thunderbird,%22MailNews%20Core%22,Calendar,%22Chat%20Core%22%20kw:good-first-bug): {keyword_counts["good-first-bug"]:n}
@@ -689,7 +691,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 
 	print("#### Closed Bug Resolutions\n")
 	output_markdown_table(
-		[(key, f"{count:n} / {closed_count:n} ({count / closed_count:.4%})") for key, count in resolution_counts.most_common()],
+		[(key, f"{count:n} / {closed_count:n} ({count / closed_count:.2%})") for key, count in resolution_counts.most_common()],
 		("Resolution", "Count"),
 	)
 
@@ -697,7 +699,7 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 
 	print("\n#### Closed Bug Types\n")
 	output_markdown_table(
-		[(key, f"{count:n} / {closed_count:n} ({count / closed_count:.4%})") for key, count in type_counts.most_common()],
+		[(key, f"{count:n} / {closed_count:n} ({count / closed_count:.2%})") for key, count in type_counts.most_common()],
 		("Type", "Count"),
 	)
 
@@ -761,6 +763,13 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 			deltas["Median"].append((median.days * 24 * 60 * 60 + median.seconds) / (365 * 24 * 60 * 60))
 
 			differences.append(difference)
+
+	period_key = get_period(end_date)
+	period_created_count = len(created[period_key])
+	period_closed_count = len(closed[period_key])
+	print(
+		f"\n**{output_period(end_date)} summary:** {period_created_count:n} bugs created, {period_closed_count:n} closed (difference: {period_created_count - period_closed_count:+n}).\n"
+	)
 
 	print(f"\n### Total Created Bugs by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(
@@ -853,6 +862,10 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 		rows.append((f"{count:n}", bmo_user["nick"], bmo_user["real_name"]))
 
 	output_markdown_table(rows, ("Bugs", "BMO User", "Name"))
+
+	print(
+		"\nWhere a value is shown as `A + B`, `A` is the count from the bug itself and `B` is from each level of nested duplicate bugs.\n"
+	)
 
 	print("\n### Top Open Bugs by Total Reactions\n")
 

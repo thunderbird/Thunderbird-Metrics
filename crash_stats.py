@@ -243,6 +243,7 @@ def main():
 	os.makedirs(adir, exist_ok=True)
 
 	data = get_histogram(start_date, now)
+	current_week_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc) - timedelta(days=now.weekday())
 
 	print("## 💥 Crash Stats (crash-stats.mozilla.org)\n")
 
@@ -259,14 +260,15 @@ def main():
 		rows = []
 		for item in reversed(data):
 			adate = fromisoformat(item["term"])
-			astats = {product["term"]: product for product in item["facets"]["product"]}
+			if adate < current_week_start:
+				astats = {product["term"]: product for product in item["facets"]["product"]}
 
-			writer.writerow({"Date": f"{adate:%Y-%m-%d}", **{product: astats[product]["count"] for product in PRODUCTS}})
+				writer.writerow({"Date": f"{adate:%Y-%m-%d}", **{product: astats[product]["count"] for product in PRODUCTS}})
 
-			rows.append((f"{adate:%Y-%m-%d}", f"{astats[PRODUCT]['count']:n}", f"{astats['Firefox']['count']:n}"))
+				rows.append((f"{adate:%Y-%m-%d}", f"{astats[PRODUCT]['count']:n}", f"{astats['Firefox']['count']:n}"))
 
-			labels.append(adate)
-			stats[PRODUCT].append(astats[PRODUCT]["count"])
+				labels.append(adate)
+				stats[PRODUCT].append(astats[PRODUCT]["count"])
 
 	print("### Thunderbird Crashes by Week (past six months)\n")
 	output_stacked_bar_graph(adir, labels, stats, "Thunderbird Crashes by Week", "Date", "Crashes", None)

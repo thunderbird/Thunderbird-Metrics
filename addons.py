@@ -455,7 +455,9 @@ def main():
 		print(f"#### Total {name}s: {addons_count:n}\n")
 
 		if any(duplicates_count.values()):
-			print(f"({', '.join(f'duplicate {key}s: {value:n}' for key, value in duplicates_count.items() if value)})\n")
+			print(
+				f"(ATN returned {', '.join(f'duplicate {key}s: {value:n}' for key, value in duplicates_count.items() if value)}, so duplicate add-ons may therefore appear in rankings below.)\n"
+			)
 
 		# disabled_count = sum(1 for addon in addons if addon["is_disabled"])
 		experimental_count = sum(1 for addon in addons if addon["is_experimental"])
@@ -466,19 +468,21 @@ def main():
 
 		output_markdown_table(
 			[
-				("⚠️ Marked Experimental", f"{experimental_count:n} / {addons_count:n} ({experimental_count / addons_count:.4%})"),
-				("📜 Open Source", f"{source_public_count:n} / {addons_count:n} ({source_public_count / addons_count:.4%})"),
-				("❤️ Requests donations", f"{contribution_count:n} / {addons_count:n} ({contribution_count / addons_count:.4%})"),
+				("⚠️ Marked Experimental", f"{experimental_count:n} / {addons_count:n} ({experimental_count / addons_count:.2%})"),
+				("📜 Open Source", f"{source_public_count:n} / {addons_count:n} ({source_public_count / addons_count:.2%})"),
+				("❤️ Requests donations", f"{contribution_count:n} / {addons_count:n} ({contribution_count / addons_count:.2%})"),
 				(
 					"💲 Requires payment",
-					f"{requires_payment_count:n} / {addons_count:n} ({requires_payment_count / addons_count:.4%})",
+					f"{requires_payment_count:n} / {addons_count:n} ({requires_payment_count / addons_count:.2%})",
 				),
-				("📈 Has public stats", f"{public_stats_count:n} / {addons_count:n} ({public_stats_count / addons_count:.4%})"),
+				("📈 Has public stats", f"{public_stats_count:n} / {addons_count:n} ({public_stats_count / addons_count:.2%})"),
 			],
 			("Type", "Count"),
 		)
 
-		print(f"\n##### {name}s compatible with recent Thunderbird versions\n")
+		print("\nFlags used below are the same as the table above\n")
+
+		print(f"##### {name}s compatible with recent Thunderbird versions\n")
 
 		rows = []
 		for aversion, version, aname in aversions:
@@ -495,13 +499,18 @@ def main():
 
 			rows.append((
 				f"Thunderbird {aname} ({version})",
-				f"{latest_count:n} / {addons_count:n} ({latest_count / addons_count:.4%})",
-				f"{any_count:n} / {addons_count:n} ({any_count / addons_count:.4%})",
+				f"{latest_count:n} / {addons_count:n} ({latest_count / addons_count:.2%})",
+				f"{any_count:n} / {addons_count:n} ({any_count / addons_count:.2%})",
 			))
 
 		output_markdown_table(rows, ("Thunderbird Version", "Latest Add-on Version Count", "Any Add-on Version Count"))
+		print(
+			"\nLatest means the current ATN version is compatible; Any means at least one version available on ATN is compatible."
+		)
 
-		print(f"\nTotal compatible: {len(items):n} / {addons_count:n} ({len(items) / addons_count:.4%})")
+		print(
+			f"\nTotal compatible with at least one listed Thunderbird version: {len(items):n} / {addons_count:n} ({len(items) / addons_count:.2%})"
+		)
 
 		category_counts = Counter(
 			category for addon in addons if APP in addon["categories"] for category in addon["categories"][APP]
@@ -510,6 +519,7 @@ def main():
 		print(f"\n##### Top {name} Categories\n")
 
 		output_markdown_table([(f"{count:n}", key) for key, count in category_counts.most_common(10)], ("Count", "Category"))
+		print("\nCategory counts are not mutually exclusive.")
 
 		if VERBOSE:
 			tags_counts = Counter(tag for addon in addons for tag in addon["tags"] if tag != "firefox57")
@@ -703,7 +713,7 @@ def main():
 			rows.append((
 				f"{i:n}",
 				f"{item['ratings']['count']:n}",
-				f"{item['ratings']['bayesian_average']:n}",
+				f"{item['ratings']['bayesian_average']:.2f}",
 				output_emojis(item),
 				item["name"],
 				", ".join(
@@ -732,7 +742,7 @@ def main():
 			compat = item["current_version"]["compatibility"][APP]
 			rows.append((
 				f"{i:n}",
-				f"{item['ratings']['bayesian_average']:n}",
+				f"{item['ratings']['bayesian_average']:.2f}",
 				f"{item['ratings']['count']:n}",
 				output_emojis(item),
 				item["name"],

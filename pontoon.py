@@ -202,7 +202,7 @@ def main():
 
 		print(f"#### Localizations: {localizations_count:n}\n")
 		print(
-			f"#### Localizations Complete: {complete_count:n} / {localizations_count:n} ({complete_count / localizations_count:.4%})\n"
+			f"#### Localizations Complete: {complete_count:n} / {localizations_count:n} ({complete_count / localizations_count:.2%})\n"
 		)
 		print("\n".join(f"* {alocale['name']!r} ({alocale['code']})" for alocale in complete))
 
@@ -232,25 +232,25 @@ def main():
 			adir,
 			labels,
 			localizations,
-			f"Pontoon {data['name']} Localizations by Translated",
+			f"Pontoon {data['name']} Localizations by Review Status",
 			"Localization",
 			"Total Strings",
 			"Strings",
 		)
 
-		print("\n#### Other Top Localizations by percentage Translated\n")
+		print("\n#### Other Top Localizations by percentage Approved\n")
 
 		rows = []
 		for i, item in enumerate(
 			sorted(
 				(alocale for alocale in data["localizations"] if not alocale["complete"]),
-				key=operator.itemgetter("approved_strings"),
+				key=lambda x: x["approved_strings"] / x["total_strings"],
 				reverse=True,
 			),
 			1,
 		):
 			rows.append((
-				f"{item['approved_strings'] / item['total_strings']:.4%} ({item['approved_strings']:n} / {item['total_strings']:n})",
+				f"{item['approved_strings'] / item['total_strings']:.2%} ({item['approved_strings']:n} / {item['total_strings']:n})",
 				f"{item['locale']['name']!r} ({item['locale']['code']})",
 			))
 			if i >= 10:
@@ -259,7 +259,7 @@ def main():
 		output_markdown_table(rows, ("Approved %", "Locale"))
 
 		print(
-			f"\n**Total Translated Strings**: {data['approved_strings']:n} / {data['total_strings']:n} ({data['approved_strings'] / data['total_strings']:.4%})\n"
+			f"\n**Total Approved Strings**: {data['approved_strings']:n} / {data['total_strings']:n} ({data['approved_strings'] / data['total_strings']:.2%})\n"
 		)
 
 		print("#### Localizations with the most Unreviewed Strings\n")
@@ -273,7 +273,7 @@ def main():
 		output_markdown_table(rows, ("Unreviewed", "Locale"))
 
 		print(
-			f"\n**Total Unreviewed Strings**: {data['unreviewed_strings']:n} / {data['total_strings']:n} ({data['unreviewed_strings'] / data['total_strings']:.4%})\n"
+			f"\n**Total Unreviewed Strings**: {data['unreviewed_strings']:n} / {data['total_strings']:n} ({data['unreviewed_strings'] / data['total_strings']:.2%})\n"
 		)
 
 		print("#### Top Missing Locales by Population (number of native speakers)\n")

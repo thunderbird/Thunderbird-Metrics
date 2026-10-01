@@ -233,12 +233,12 @@ def main():
 		adir,
 		[datetime.fromisoformat(adate).astimezone(timezone.utc) for adate in atb_users],
 		{"Thunderbird": [value["ami"] for value in atb_users.values()]},
-		"Thunderbird Monthly Active Users by Week",
+		"Thunderbird Active Monthly Installations by Week",
 		"Date",
-		"Users",
+		"Installations",
 		None,
 	)
-	print(f"Thunderbird Monthly Active Users: {tb_users_item['ami']:n} as of: {tb_date}")
+	print(f"Thunderbird Active Monthly Installations (AMI): {tb_users_item['ami']:n} as of: {tb_date}")
 
 	output_line_graph1(
 		adir,
@@ -249,7 +249,7 @@ def main():
 		None,
 	)
 	print(
-		f"Firefox Monthly Active Users: {ff_users_item:n} ({ff_users_item / tb_users_item['ami']:n}× Thunderbird users) as of: {ff_date}"
+		f"Firefox Monthly Active Users (MAU): {ff_users_item:n} as of: {ff_date}\nFirefox MAU / Thunderbird AMI: {ff_users_item / tb_users_item['ami']:.2f}×"
 	)
 
 	print(f"\nAlso see: {THUNDERBIRD_STATS_URL}#ami\n\nDescription from Firefox:\n> {ff_users['description'][0]}")
@@ -286,12 +286,13 @@ def main():
 	rows = [["-", "", "", "-", "", ""] for _ in range(min(15, max(len(tb_locales_item["versions"]), len(ff_locales_item))))]
 
 	for row, (key, count) in zip(rows, Counter(tb_locales_item["versions"]).most_common(15)):
-		row[:3] = (f"{count / tb_locales_item['count']:.4%}", key, languages[key]["English"] if key in languages else "")
+		row[:3] = (f"{count / tb_locales_item['count']:.2%}", key, languages[key]["English"] if key in languages else "")
 
 	for row, (key, count) in zip(rows, sorted(ff_locales_item.items(), key=operator.itemgetter(1), reverse=True)):
-		row[3:] = (f"{count:.4f}%", key, languages[key]["English"] if key in languages else "")
+		row[3:] = (f"{count:.2f}%", key, languages[key]["English"] if key in languages else "")
 
 	output_markdown_table(rows, ("Thunderbird %", "Locale", "Name", "Firefox %", "Locale", "Name"))
+	print("\nThunderbird percentages use each category count divided by the reported total count, matching stats.thunderbird.net.")
 
 	print(f"\nAlso see: {THUNDERBIRD_STATS_URL}#platlang\n\nDescription from Firefox:\n> {ff_locales['description'][0]}")
 
@@ -329,12 +330,13 @@ def main():
 	rows = [["-", "", "", "-", ""] for _ in range(max(len(tb_oss_item["versions"]), len(ff_os_item)))]
 
 	for row, (key, count) in zip(rows, Counter(tb_oss_item["versions"]).most_common()):
-		row[:3] = (f"{count / tb_oss_item['count']:%}", key, OPERATING_SYSTEMS.get(key, ""))
+		row[:3] = (f"{count / tb_oss_item['count']:.4%}", key, OPERATING_SYSTEMS.get(key, ""))
 
 	for row, (key, count) in zip(rows, sorted(ff_os_item.items(), key=operator.itemgetter(1), reverse=True)):
-		row[3:] = (f"{count:f}%", OPERATING_SYSTEMS.get(key, key))
+		row[3:] = (f"{count:.4f}%", OPERATING_SYSTEMS.get(key, key))
 
 	output_markdown_table(rows, ("Thunderbird %", "Platform", "Operating System", "Firefox %", "Operating System"))
+	print("\nThunderbird percentages use each category count divided by the reported total count, matching stats.thunderbird.net.")
 
 	print(f"\nAlso see: {THUNDERBIRD_STATS_URL}#platlang\n\nDescription from Firefox:\n> {ff_oss['description']}")
 
