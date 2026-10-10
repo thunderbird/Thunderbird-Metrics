@@ -15,6 +15,7 @@ import os
 import platform
 import sys
 import time
+import zipfile
 from datetime import datetime, timedelta, timezone
 from itertools import count, starmap
 from json.decoder import JSONDecodeError
@@ -250,7 +251,9 @@ def main():
 		labels = []
 		translations = {key: [] for key in ("Approved", "Read-only", "Unapproved", "Untranslated")}
 
-		with open(os.path.join(adir, f"Weblate_{slug}.csv"), "w", newline="", encoding="utf-8") as csvfile:
+		with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+			newline=""
+		) as csvfile:
 			writer = csv.writer(csvfile)
 
 			writer.writerow(("name", "code", "approved", "readonly", "translated", "total"))
@@ -264,6 +267,8 @@ def main():
 				translations["Read-only"].append(item["readonly"])
 				translations["Unapproved"].append(item["translated"] - item["readonly"] - item["approved"])
 				translations["Untranslated"].append(item["total"] - item["translated"])
+
+			myzip.writestr(f"Weblate_{slug}.csv", csvfile.getvalue())
 
 		output_stacked_bar_graph(
 			adir, labels, translations, f"Weblate {stats['name']} Languages by Approved", "Language", "Total Strings", "Strings"

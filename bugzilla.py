@@ -20,6 +20,7 @@ import statistics
 import sys
 import textwrap
 import time
+import zipfile
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
@@ -709,9 +710,9 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 	deltas = {key: [] for key in ("Mean", "Median")}
 	differences = []
 
-	with open(os.path.join(adir, "BMO_bugs_created.csv"), "w", newline="", encoding="utf-8") as csvfile1, open(
-		os.path.join(adir, "BMO_bugs_closed.csv"), "w", newline="", encoding="utf-8"
-	) as csvfile2, open(os.path.join(adir, "BMO_bugs_diff.csv"), "w", newline="", encoding="utf-8") as csvfile3:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile1, io.StringIO(newline="") as csvfile2, io.StringIO(newline="") as csvfile3:
 		writer1 = csv.DictWriter(csvfile1, ("Date", "Total Created", *STATUSES))
 		writer2 = csv.DictWriter(csvfile2, ("Date", "Total Closed", *RESOLUTIONS))
 		writer3 = csv.writer(csvfile3)
@@ -763,6 +764,10 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 			deltas["Median"].append((median.days * 24 * 60 * 60 + median.seconds) / (365 * 24 * 60 * 60))
 
 			differences.append(difference)
+
+		myzip.writestr("BMO_bugs_created.csv", csvfile1.getvalue())
+		myzip.writestr("BMO_bugs_closed.csv", csvfile2.getvalue())
+		myzip.writestr("BMO_bugs_diff.csv", csvfile3.getvalue())
 
 	period_key = get_period(end_date)
 	period_created_count = len(created[period_key])
@@ -895,7 +900,9 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 
 	print("\n### Top Open Bugs by Total Votes\n")
 
-	with open(os.path.join(adir, "BMO_open_bug_votes.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile:
 		writer = csv.writer(csvfile)
 		writer.writerow((
 			"Votes",
@@ -940,6 +947,8 @@ Also see: https://codetribute.mozilla.org/projects/thunderbird
 					textwrap.shorten(item["summary"], 80, placeholder="…"),
 					f"{BUGZILLA_SHORT_URL}{item['id']}",
 				))
+
+		myzip.writestr("BMO_open_bug_votes.csv", csvfile.getvalue())
 
 	output_markdown_table(rows, ("#", "Votes", "Reactions", "Type", "Product", "Component", "Summary", "URL"))
 

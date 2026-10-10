@@ -15,6 +15,7 @@ import platform
 import re
 import sys
 import textwrap
+import zipfile
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
@@ -285,7 +286,9 @@ def main():
 	labels = [date for date, _ in reversed(dates)]
 	created_mailbox = {g["name"]: [] for g in mailboxs.values()}
 
-	with open(os.path.join(adir, "Topicbox.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile:
 		writer = csv.DictWriter(csvfile, ("Date", "Total Threads", *(g["name"] for g in mailboxs.values())))
 
 		writer.writeheader()
@@ -309,6 +312,8 @@ def main():
 
 			for g in mailboxs.values():
 				created_mailbox[g["name"]].append(thread_counts[g["archiveMailboxId"]])
+
+		myzip.writestr("Topicbox.csv", csvfile.getvalue())
 
 	print(f"\n### Total Email Threads by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(

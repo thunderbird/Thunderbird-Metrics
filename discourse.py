@@ -18,6 +18,7 @@ import re
 import sys
 import textwrap
 import time
+import zipfile
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
@@ -344,7 +345,9 @@ def main():
 	created_status = {key: [] for key in ("Topic", "Replied", "Solved")}
 	created_category = {category["name"]: [] for category in categories.values()}
 
-	with open(os.path.join(adir, "Discourse_topics.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile:
 		writer = csv.DictWriter(
 			csvfile, ("Date", "Topics", "Replied", "Solved", *(category["name"] for category in categories.values()))
 		)
@@ -382,6 +385,8 @@ def main():
 
 			for category in categories.values():
 				created_category[category["name"]].append(category_counts[category["id"]])
+
+		myzip.writestr("Discourse_topics.csv", csvfile.getvalue())
 
 	print(
 		f'\n### Total Topics Created by {PERIODS[PERIOD]}\n\n"(The lifecycle goes "Topic" ⟶ "Replied" ⟶ "Solved". Replied means the topic has at least one reply. Solved means it has an accepted answer.)\n'

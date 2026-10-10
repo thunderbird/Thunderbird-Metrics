@@ -18,6 +18,7 @@ import platform
 import re
 import sys
 import time
+import zipfile
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
@@ -311,7 +312,10 @@ def main():
 	created_status = {key: [] for key in ("Question", "Answered", "Solved")}
 	created_product = {key: [] for key in PRODUCTS}
 
-	with open(os.path.join(adir, "SUMO_questions.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with (
+		zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip,
+		io.StringIO(newline="") as csvfile,
+	):
 		writer = csv.DictWriter(csvfile, ("Date", "Questions", "Answered", "Solved", *PRODUCTS))
 
 		writer.writeheader()
@@ -346,6 +350,8 @@ def main():
 
 			for key in PRODUCTS:
 				created_product[key].append(product_counts[key])
+
+		myzip.writestr("SUMO_questions.csv", csvfile.getvalue())
 
 	print(f'### Total Questions Created by {PERIODS[PERIOD]}\n\n(The lifecycle goes "Question" ⟶ "Answered" ⟶ "Solved".)\n')
 	output_stacked_bar_graph(

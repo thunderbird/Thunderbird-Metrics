@@ -19,6 +19,7 @@ import statistics
 import sys
 import textwrap
 import time
+import zipfile
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
@@ -722,9 +723,9 @@ def main():
 	deltas = {key: [] for key in ("Mean", "Median")}
 	differences = []
 
-	with open(os.path.join(adir, "GitHub_created.csv"), "w", newline="", encoding="utf-8") as csvfile1, open(
-		os.path.join(adir, "GitHub_closed.csv"), "w", newline="", encoding="utf-8"
-	) as csvfile2, open(os.path.join(adir, "GitHub_diff.csv"), "w", newline="", encoding="utf-8") as csvfile3:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile1, io.StringIO(newline="") as csvfile2, io.StringIO(newline="") as csvfile3:
 		writer1 = csv.DictWriter(csvfile1, ("Date", "Issues Created", *issue_keys, "PRs Created", *pr_keys, "Total Created"))
 		writer2 = csv.DictWriter(
 			csvfile2, ("Date", "Issues Closed", "PRs Closed", "Total Closed", *reason_counts, "Merged", "Unmerged")
@@ -818,6 +819,10 @@ def main():
 			deltas["Median"].append((median.days * 24 * 60 * 60 + median.seconds) / (365 * 24 * 60 * 60))
 
 			differences.append(difference)
+
+		myzip.writestr("GitHub_created.csv", csvfile1.getvalue())
+		myzip.writestr("GitHub_closed.csv", csvfile2.getvalue())
+		myzip.writestr("GitHub_diff.csv", csvfile3.getvalue())
 
 	period_key = get_period(end_date)
 	period_issues_created_count = len(issues_created[period_key])
@@ -1009,7 +1014,9 @@ def main():
 
 	print("\n### Top Open Issues and Pull Requests by Total Reactions\n")
 
-	with open(os.path.join(adir, "GitHub_open_reactions.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile:
 		writer = csv.writer(csvfile)
 		writer.writerow(("Total Reactions", "+1 Reactions", "Date (UTC)", "Repository", "Type", "Labels", "Title", "Body", "URL"))
 
@@ -1043,6 +1050,8 @@ def main():
 					textwrap.shorten(item["title"], 80, placeholder="…"),
 					item["html_url"],
 				))
+
+		myzip.writestr("GitHub_open_reactions.csv", csvfile.getvalue())
 
 	output_markdown_table(rows, ("#", "Reactions", "Repository", "Type/Labels", "Title", "URL"))
 

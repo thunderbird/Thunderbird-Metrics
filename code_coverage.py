@@ -14,6 +14,7 @@ import os
 import platform
 import statistics
 import sys
+import zipfile
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
 from json.decoder import JSONDecodeError
@@ -211,7 +212,9 @@ def main():
 	labels = list(reversed(dates))
 	coverages = {path or "Root": [] for path in paths}
 
-	with open(os.path.join(adir, "Code Coverage.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile:
 		writer = csv.DictWriter(csvfile, ("Date", *paths))
 
 		writer.writeheader()
@@ -241,6 +244,8 @@ def main():
 
 			for path, acoverage in acoverages.items():
 				coverages[path or "Root"].append(acoverage if acoverage is not None else 0)
+
+		myzip.writestr("Code Coverage.csv", csvfile.getvalue())
 
 	print(f"### Code Coverage by {PERIODS[PERIOD]} (past year)\n")
 	output_line_graph(adir, labels, coverages, f"Thunderbird Code Coverage by {PERIODS[PERIOD]}", "Date", "Coverage %", "Path")

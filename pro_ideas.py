@@ -18,6 +18,7 @@ import re
 import statistics
 import sys
 import time
+import zipfile
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
@@ -358,7 +359,9 @@ def main():
 	alabels = list(reversed(dates))
 	created_status = {state["slug"]: [] for state in states}
 
-	with open(os.path.join(adir, "Pro Ideas_states.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile:
 		writer = csv.DictWriter(csvfile, ("Date", "Total Created", *(state["slug"] for state in states)))
 
 		writer.writeheader()
@@ -383,6 +386,8 @@ def main():
 				key = state["slug"]
 				created_status[key].append(astatus_counts.get(key, 0))
 
+		myzip.writestr("Pro Ideas_states.csv", csvfile.getvalue())
+
 	print(f"\n### Total Ideas Created by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(
 		adir, alabels, created_status, f"Thunderbird Pro Ideas Created by {PERIODS[PERIOD]}", "Date", "Total Created", "Status"
@@ -391,7 +396,9 @@ def main():
 
 	print("\n### Top Ideas by Total Votes\n")
 
-	with open(os.path.join(adir, "Pro Ideas_votes.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile:
 		writer = csv.writer(csvfile)
 		writer.writerow(("Upvotes", "Total Votes", "Date", "State", "Status", "Title", "Description", "URL"))
 
@@ -426,6 +433,8 @@ def main():
 					item["title"],
 					f"{PRO_IDEAS_BASE_URL}p/{item['slug']}",
 				))
+
+		myzip.writestr("Pro Ideas_votes.csv", csvfile.getvalue())
 
 	output_markdown_table(rows, ("#", "Upvotes", "State", "Status", "Title", "URL"))
 

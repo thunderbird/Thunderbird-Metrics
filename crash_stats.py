@@ -14,6 +14,7 @@ import os
 import platform
 import re
 import sys
+import zipfile
 from collections import Counter, namedtuple
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
@@ -252,7 +253,9 @@ def main():
 	labels = []
 	stats = {product: [] for product in (PRODUCT,)}
 
-	with open(os.path.join(adir, "Crash Stats.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile:
 		writer = csv.DictWriter(csvfile, ("Date", *PRODUCTS))
 
 		writer.writeheader()
@@ -269,6 +272,8 @@ def main():
 
 				labels.append(adate)
 				stats[PRODUCT].append(astats[PRODUCT]["count"])
+
+		myzip.writestr("Crash Stats.csv", csvfile.getvalue())
 
 	print("### Thunderbird Crashes by Week (past six months)\n")
 	output_stacked_bar_graph(adir, labels, stats, "Thunderbird Crashes by Week", "Date", "Crashes", None)

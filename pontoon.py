@@ -14,6 +14,7 @@ import operator
 import os
 import platform
 import sys
+import zipfile
 from datetime import datetime, timezone
 from itertools import starmap
 from json.decoder import JSONDecodeError
@@ -209,7 +210,9 @@ def main():
 		labels = []
 		localizations = {key: [] for key in ("Approved", "Unreviewed")}
 
-		with open(os.path.join(adir, f"Pontoon_{slug}.csv"), "w", newline="", encoding="utf-8") as csvfile:
+		with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+			newline=""
+		) as csvfile:
 			writer = csv.writer(csvfile)
 
 			writer.writerow(("name", "code", "approved", "unreviewed", "total"))
@@ -227,6 +230,8 @@ def main():
 
 				localizations["Approved"].append(item["approved_strings"])
 				localizations["Unreviewed"].append(item["unreviewed_strings"])
+
+			myzip.writestr(f"Pontoon_{slug}.csv", csvfile.getvalue())
 
 		output_stacked_bar_graph(
 			adir,

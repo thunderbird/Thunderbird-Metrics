@@ -19,6 +19,7 @@ import re
 import sys
 import textwrap
 import time
+import zipfile
 from collections import Counter, namedtuple
 from datetime import datetime, timedelta, timezone
 from itertools import starmap
@@ -559,9 +560,9 @@ def main():
 		created_status = {key: [] for key in ("Created",)}
 		updates_status = {key: [] for key in ("Updates",)}
 
-		with open(os.path.join(adir, f"ATN_{atype}s_created.csv"), "w", newline="", encoding="utf-8") as csvfile1, open(
-			os.path.join(adir, f"ATN_{atype}_updates.csv"), "w", newline="", encoding="utf-8"
-		) as csvfile2:
+		with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+			newline=""
+		) as csvfile1, io.StringIO(newline="") as csvfile2:
 			writer1 = csv.DictWriter(csvfile1, ("Date", "Total Created", *category_counts))
 			writer2 = csv.writer(csvfile2)
 
@@ -593,6 +594,9 @@ def main():
 
 				created_status["Created"].append(created_count)
 				updates_status["Updates"].append(updates_count)
+
+			myzip.writestr(f"ATN_{atype}s_created.csv", csvfile1.getvalue())
+			myzip.writestr(f"ATN_{atype}_updates.csv", csvfile2.getvalue())
 
 		print(f"\n#### Total {name}s Created by {PERIODS[PERIOD]}\n")
 		output_stacked_bar_graph(

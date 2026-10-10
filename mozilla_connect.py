@@ -17,6 +17,7 @@ import re
 import statistics
 import sys
 import time
+import zipfile
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from html.parser import HTMLParser
@@ -404,9 +405,9 @@ def main():
 	created_status = {key: [] for key in STATUSES}
 	created_label = {key: [] for key in LABELS}
 
-	with open(os.path.join(adir, "Mozilla Connect_labels.csv"), "w", newline="", encoding="utf-8") as csvfile1, open(
-		os.path.join(adir, "Mozilla Connect_statuses.csv"), "w", newline="", encoding="utf-8"
-	) as csvfile2:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile1, io.StringIO(newline="") as csvfile2:
 		writer1 = csv.DictWriter(csvfile1, ("Date", "Total Created", *LABELS))
 		writer2 = csv.DictWriter(csvfile2, ("Date", "Total Created", *STATUSES))
 
@@ -439,6 +440,9 @@ def main():
 			for key in LABELS:
 				created_label[key].append(label_counts[key])
 
+		myzip.writestr("Mozilla Connect_labels.csv", csvfile1.getvalue())
+		myzip.writestr("Mozilla Connect_statuses.csv", csvfile2.getvalue())
+
 	print(f"\n### Total Ideas/Discussions Created by {PERIODS[PERIOD]}\n")
 	output_stacked_bar_graph(
 		adir,
@@ -467,7 +471,9 @@ def main():
 
 	print("### Top Ideas/Discussions by Total Kudos\n")
 
-	with open(os.path.join(adir, "Mozilla Connect_kudos.csv"), "w", newline="", encoding="utf-8") as csvfile:
+	with zipfile.ZipFile(os.path.join(adir, "attachments.zip"), "a", compression=zipfile.ZIP_DEFLATED) as myzip, io.StringIO(
+		newline=""
+	) as csvfile:
 		writer = csv.writer(csvfile)
 		writer.writerow(("Kudos", "Total Kudos", "Date (UTC)", "Board", "Labels", "Idea Status", "Subject", "Body", "URL"))
 
@@ -504,6 +510,8 @@ def main():
 					item["subject"],
 					item["view_href"],
 				))
+
+		myzip.writestr("Mozilla Connect_kudos.csv", csvfile.getvalue())
 
 	output_markdown_table(rows, ("#", "Kudos", "Board", "Labels", "Idea Status", "Subject", "URL"))
 
